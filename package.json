@@ -1,0 +1,16 @@
+{
+  "name": "hex-viewer",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run dev-server.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@webgpu/types": "^0.1.50",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
