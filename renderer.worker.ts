@@ -250,11 +250,13 @@ function measureCell(fontPx: number): { cellW: number; cellH: number; fontCss: s
 }
 
 class Renderer {
+  // WebGPU 相关画布、上下文和设备对象
   private canvas: OffscreenCanvas | null = null;
   private ctx: GPUCanvasContext | null = null;
   private device: GPUDevice | null = null;
   private format: GPUTextureFormat | null = null;
 
+  // 渲染管线和顶点/实例缓冲区
   private pipeline: GPURenderPipeline | null = null;
   private bindGroup: GPUBindGroup | null = null;
   private uniformBuf: GPUBuffer | null = null;
@@ -263,39 +265,50 @@ class Renderer {
   private instanceCapacityFloats = 0;
   private instanceData = new Float32Array(0);
 
+  // 字形纹理图集和采样器
   private glyphMap: Map<string, Glyph> | null = null;
   private atlasTexture: GPUTexture | null = null;
   private atlasSampler: GPUSampler | null = null;
 
+  // 字体与单元格尺寸
   private fontPx = 14;
   private cellW = 8;
   private cellH = 16;
   private fontCss = "";
 
+  // 滚动条宽度、每行最小字节数和主题配置
   private scrollBarWidthPx = 20;
   private minBytesPerRow = 4;
   private theme: HexViewerTheme = defaultTheme;
 
+  // 当前每行字节数与地址显示位数
   private bytesPerRow = 16;
   private addrDigits: 8 | 16 = 8;
+  // 垂直滚动偏移（像素）
   private scrollY = 0;
 
+  // 选择区锚点及起止（按字节索引）
   private selAnchor: number | null = null;
   private selStart: number | null = null;
   private selEnd: number | null = null;
 
+  // 滚动条拖拽状态
   private scrollDragActive = false;
   private scrollDragStartY = 0;
   private scrollDragStartScrollY = 0;
 
+  // 当前虚拟总字节数（演示数据）
   private totalBytes = 64 * 1024 * 1024;
 
+  // 画布像素尺寸
   private width = 1;
   private height = 1;
 
+  // 渲染循环控制
   private running = false;
   private rafId: number | null = null;
 
+  // 初始化 WebGPU 并构建初始资源
   async init(msg: InitMessage): Promise<void> {
     this.canvas = msg.canvas;
     this.resize(msg.width, msg.height);
@@ -356,6 +369,7 @@ class Renderer {
     this.frame();
   }
 
+  // 处理窗口/画布尺寸变化
   resize(width: number, height: number): void {
     this.width = Math.max(1, Math.floor(width));
     this.height = Math.max(1, Math.floor(height));
@@ -389,6 +403,7 @@ class Renderer {
     });
   }
 
+  // 根据当前字体、主题等重新构建 GPU 资源（纹理、缓冲、管线等）
   private buildResources(): void {
     if (!this.device || !this.ctx || !this.format) return;
 
@@ -403,6 +418,7 @@ class Renderer {
     this.atlasTexture = null;
     this.atlasSampler = null;
 
+    // 构建要支持的字形集合，并根据字体生成纹理图集
     const glyphs = buildGlyphSet();
     const atlas = createGlyphAtlas(this.fontCss, this.cellW, this.cellH, glyphs);
     this.glyphMap = atlas.map;
@@ -449,6 +465,7 @@ class Renderer {
     });
     this.device.queue.writeBuffer(this.quadBuf, 0, quadVerts);
 
+    // WGSL 着色器：顶点阶段将实例化的矩形映射到 NDC，片段阶段用字形 alpha 做前景/背景混合
     const shader = this.device.createShaderModule({
       code: `
 struct Uniforms {
@@ -560,18 +577,22 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     this.ensureInstanceCapacity(8192);
   }
 
+  // 整个内容（所有字节行）对应的总像素高度
   private contentHeightPx(): number {
     return Math.ceil(this.totalBytes / this.bytesPerRow) * this.cellH;
   }
 
+  // 最大允许滚动位置（确保内容刚好滚完）
   private maxScrollY(): number {
     return Math.max(0, this.contentHeightPx() - this.height);
   }
 
+  // 限制 scrollY 在合法范围内
   private clampScroll(): void {
     this.scrollY = clamp(this.scrollY, 0, this.maxScrollY());
   }
 
+  // 根据内容高度和视口高度计算滚动条轨道和滑块几何信息
   private scrollBarMetrics(): {
     x: number;
     y: number;
@@ -598,7 +619,9 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return { x, y, w, h, thumbY, thumbH };
   }
 
+  // 命中测试：判断一个像素位置是否位于滚动条区域及其滑块上
   private hitTestScrollBar(px: number, py: number): { hit: boolean; onThumb: boolean } {
+    // 追加滚动条的轨道和滑块背景
     const sb = this.scrollBarMetrics();
     if (px < sb.x || px > sb.x + sb.w || py < 0 || py > sb.h) {
       return { hit: false, onThumb: false };
@@ -607,6 +630,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return { hit: true, onThumb };
   }
 
+  // 根据滑块的 Y 坐标反推 scrollY
   private setScrollFromThumbY(thumbY: number): void {
     const sb = this.scrollBarMetrics();
     const contentH = this.contentHeightPx();
@@ -621,6 +645,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     this.clampScroll();
   }
 
+  // 从屏幕坐标（像素）反算出对应的字节索引（十六进制区或 ASCII 区）
   private byteIndexAt(px: number, py: number): number | null {
     const l = layout(this.addrDigits, this.bytesPerRow);
 
@@ -652,6 +677,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return null;
   }
 
+  // 确保实例缓冲区容量足够渲染指定数量的实例
   private ensureInstanceCapacity(instanceCount: number): void {
     if (!this.device) return;
     const floatsPerInstance = 16;
@@ -667,6 +693,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     });
   }
 
+  // 将一个字符实例写入实例缓冲（位置、UV、前景/背景颜色）
   private putChar(
     out: Float32Array,
     floatIndex: number,
@@ -700,6 +727,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return floatIndex + 16;
   }
 
+  // 用“空白字符”纹理绘制一个有背景色的矩形，用于背景块/滚动条等
   private putRect(
     out: Float32Array,
     floatIndex: number,
@@ -733,11 +761,13 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return floatIndex + 16;
   }
 
+  // 根据偏移生成一个可重复的伪随机字节，用于演示数据
   private syntheticByte(offset: number): number {
     const x = (offset * 1103515245 + 12345) >>> 0;
     return (x >>> 16) & 0xff;
   }
 
+  // 生成当前帧要绘制的所有实例数据，并返回实例数量
   private drawHexView(): number {
     if (!this.glyphMap) return 0;
 
@@ -748,6 +778,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     const selBg = this.theme.selectionBg;
     const selFg = this.theme.selectionFg;
 
+    // 视口中可见的行数（多渲染两行做缓冲，避免滚动抖动）
     const rowsVisible = Math.ceil(this.height / this.cellH) + 2;
     const firstRow = Math.max(0, Math.floor(this.scrollY / this.cellH));
     const yOffset = -(this.scrollY - firstRow * this.cellH);
@@ -771,6 +802,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
       const y = yOffset + r * this.cellH;
       if (y < -this.cellH || y > this.height + this.cellH) continue;
 
+      // 行首地址列（例如 00000010:）
       let addr = baseOffset.toString(16).toUpperCase();
       while (addr.length < this.addrDigits) addr = `0${addr}`;
       addr = `${addr}:`;
@@ -788,12 +820,14 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
         }
       }
 
+      // 绘制十六进制列（每字节两个 hex 字符 + 一个空格）
       for (let b = 0; b < this.bytesPerRow; b++) {
         const off = baseOffset + b;
         const v = off < this.totalBytes ? this.syntheticByte(off) : 0;
         const s = hexUpperByte(v);
         const hx = (l.hexStartChar + b * 3) * this.cellW;
         if (hx >= contentWidthPx) break;
+        // 选中范围内的字节需要高亮显示
         const isSel =
           this.selStart !== null &&
           this.selEnd !== null &&
@@ -840,6 +874,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     return f / 16;
   }
 
+  // 安排下一帧渲染（优先使用 requestAnimationFrame，退化为 setTimeout）
   private scheduleNextFrame(): void {
     const g = self as unknown as { requestAnimationFrame?: (cb: () => void) => number };
 
@@ -851,6 +886,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     this.rafId = self.setTimeout(() => this.frame(), 16);
   }
 
+  // 单帧渲染逻辑：更新 uniform、写入实例数据并提交渲染命令
   private frame(): void {
     if (!this.running || !this.device || !this.ctx) return;
     if (!this.pipeline || !this.bindGroup || !this.uniformBuf || !this.quadBuf || !this.instanceBuf) {
@@ -893,15 +929,18 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     this.scheduleNextFrame();
   }
 
+  // 鼠标滚轮事件：根据 deltaY 更新垂直滚动位置
   onWheel(msg: WheelMessage): void {
     const speed = msg.shiftKey ? 3.0 : 1.0;
     this.scrollY += msg.deltaY * speed;
     this.clampScroll();
   }
+  // 指针事件：处理滚动条拖拽和字节选择
   onPointer(msg: PointerMessage): void {
     if (msg.phase === "down") {
       if (msg.button !== 0) return;
 
+      // 优先检测点击是否落在滚动条区域
       const hit = this.hitTestScrollBar(msg.x, msg.y);
       if (hit.hit) {
         const sb = this.scrollBarMetrics();
@@ -912,11 +951,13 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
           return;
         }
 
+        // 点击轨道空白区域时，将滑块居中对齐到点击位置
         const targetThumbY = msg.y - Math.floor(sb.thumbH / 2);
         this.setScrollFromThumbY(targetThumbY);
         return;
       }
 
+      // 未点中滚动条时，尝试命中字节并建立新的选择区
       const idx = this.byteIndexAt(msg.x, msg.y);
       if (idx === null) {
         this.selAnchor = null;
@@ -946,6 +987,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
         return;
       }
 
+      // 仅在有选择锚点且仍按下主键时更新选择范围
       if (this.selAnchor === null) return;
       if ((msg.buttons & 1) === 0) return;
 
@@ -965,8 +1007,10 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     }
   }
 
+  // 键盘事件预留，目前未处理
   onKey(_msg: KeyMessage): void { }
 
+  // 应用运行时配置更新（字体大小、主题等），必要时重建 GPU 资源
   applyConfig(msg: ConfigMessage): void {
     let rebuild = false;
 

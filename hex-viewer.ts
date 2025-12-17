@@ -1,4 +1,33 @@
+// 对外暴露给使用者的主题配置，颜色使用 CSS 十六进制字符串（如 "#FFFFFF" 或 "#11223344"）
 export type HexViewerTheme = {
+  background: string;
+  text: string;
+  address: string;
+  dim: string;
+  selectionBg: string;
+  selectionFg: string;
+  scrollTrack: string;
+  scrollThumb: string;
+  scrollThumbActive: string;
+};
+
+// 创建 HexViewer 时的配置选项
+export type HexViewerOptions = {
+  /** 字体大小（CSS 像素），渲染器内部会限制在 [8, 48] 范围。 */
+  fontPx?: number;
+
+  /** 主题颜色覆盖，使用十六进制颜色字符串（例如 "#1E1E1E"）。 */
+  theme?: Partial<HexViewerTheme>;
+
+  /** 画布内部滚动条的宽度（设备像素）。 */
+  scrollBarWidthPx?: number;
+
+  /** 十六进制视图中每行的最小字节数。 */
+  minBytesPerRow?: number;
+};
+
+// 发送给 Worker 端渲染器的主题类型：颜色为线性 RGBA 浮点数组
+type WorkerHexViewerTheme = {
   background: [number, number, number, number];
   text: [number, number, number, number];
   address: [number, number, number, number];
@@ -10,20 +39,6 @@ export type HexViewerTheme = {
   scrollThumbActive: [number, number, number, number];
 };
 
-export type HexViewerOptions = {
-  /** Font size in CSS pixels. The renderer will clamp to [8, 48]. */
-  fontPx?: number;
-
-  /** Override theme colors. */
-  theme?: Partial<HexViewerTheme>;
-
-  /** Width of the in-canvas scrollbar in device pixels. */
-  scrollBarWidthPx?: number;
-
-  /** Minimum bytes per row for the hex grid. */
-  minBytesPerRow?: number;
-};
-
 type RendererInitMessage = {
   type: "init";
   canvas: OffscreenCanvas;
@@ -31,7 +46,8 @@ type RendererInitMessage = {
   height: number;
   dpr: number;
   fontPx?: number;
-  theme?: Partial<HexViewerTheme>;
+  // 传给 Worker 的主题对象，已经通过工具函数将颜色从十六进制字符串转换为 [r,g,b,a]。
+  theme?: Partial<WorkerHexViewerTheme>;
   scrollBarWidthPx?: number;
   minBytesPerRow?: number;
 };
@@ -78,7 +94,8 @@ type RendererKeyMessage = {
 type RendererConfigMessage = {
   type: "config";
   fontPx?: number;
-  theme?: Partial<HexViewerTheme>;
+  // 运行时配置更新中的主题字段，使用 Worker 端的主题类型
+  theme?: Partial<WorkerHexViewerTheme>;
 };
 
 type MainToWorkerMessage =
@@ -93,6 +110,7 @@ type WorkerToMainMessage =
   | { type: "ready" }
   | { type: "error"; message: string };
 
+// 将浏览器中 canvas 的 CSS 尺寸转换为设备像素尺寸
 function getCanvasSize(canvas: HTMLCanvasElement): { width: number; height: number; dpr: number } {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -107,6 +125,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+// 构造 renderer.worker.ts 的 URL，兼容 file: 协议（本地开发场景）
 function workerUrl(): URL {
   let url = new URL("./renderer.worker.ts", import.meta.url);
   if (url.protocol === "file:") {
@@ -115,16 +134,88 @@ function workerUrl(): URL {
   return url;
 }
 
+// 将十六进制颜色字符串转换为 [r,g,b,a] 浮点数组，范围 [0,1]
+// 支持形如 #RRGGBB 或 #RRGGBBAA，不合法输入会返回 undefined
+function hexToRgbaFloats(hex: string): [number, number, number, number] | undefined {
+  let s = hex.trim();
+  if (s.startsWith("#")) s = s.slice(1);
+  if (s.length !== 6 && s.length !== 8) return undefined;
+
+  const parse = (start: number) => Number.parseInt(s.slice(start, start + 2), 16);
+  const r = parse(0);
+  const g = parse(2);
+  const b = parse(4);
+  const a = s.length === 8 ? parse(6) : 255;
+  if ([r, g, b, a].some((v) => Number.isNaN(v))) return undefined;
+  return [r / 255, g / 255, b / 255, a / 255];
+}
+
+// 将对外的 HexViewerTheme（十六进制字符串）映射为 Worker 使用的浮点主题对象
+function mapThemeToWorker(theme?: Partial<HexViewerTheme>): Partial<WorkerHexViewerTheme> | undefined {
+  if (!theme) return undefined;
+  const result: Partial<WorkerHexViewerTheme> = {};
+
+  const assign = (key: keyof WorkerHexViewerTheme, value: string | undefined) => {
+    if (typeof value !== "string") return;
+    const rgba = hexToRgbaFloats(value);
+    if (!rgba) return;
+    switch (key) {
+      case "background":
+        result.background = rgba;
+        break;
+      case "text":
+        result.text = rgba;
+        break;
+      case "address":
+        result.address = rgba;
+        break;
+      case "dim":
+        result.dim = rgba;
+        break;
+      case "selectionBg":
+        result.selectionBg = rgba;
+        break;
+      case "selectionFg":
+        result.selectionFg = rgba;
+        break;
+      case "scrollTrack":
+        result.scrollTrack = rgba;
+        break;
+      case "scrollThumb":
+        result.scrollThumb = rgba;
+        break;
+      case "scrollThumbActive":
+        result.scrollThumbActive = rgba;
+        break;
+    }
+  };
+
+  assign("background", theme.background);
+  assign("text", theme.text);
+  assign("address", theme.address);
+  assign("dim", theme.dim);
+  assign("selectionBg", theme.selectionBg);
+  assign("selectionFg", theme.selectionFg);
+  assign("scrollTrack", theme.scrollTrack);
+  assign("scrollThumb", theme.scrollThumb);
+  assign("scrollThumbActive", theme.scrollThumbActive);
+
+  return result;
+}
 
 /**
- * HexViewer is a self-contained renderer bound to a user-provided canvas.
- * Rendering happens in a Worker using WebGPU + OffscreenCanvas.
+ * HexViewer 是一个绑定到用户提供的 canvas 的自包含渲染器。
+ * 渲染发生在使用 WebGPU + OffscreenCanvas 的 Worker 中。
  */
 export class HexViewer {
+  // 绑定的 canvas 元素
   readonly canvas: HTMLCanvasElement;
 
+  // 渲染器 Worker 实例
   private worker: Worker;
+  // canvas 尺寸观察器
   private resizeObserver: ResizeObserver | null = null;
+  // 是否已经销毁
   private disposed = false;
 
   private readonly onResize: () => void;
@@ -148,7 +239,9 @@ export class HexViewer {
       }
     };
 
+    // 初始化时根据当前 canvas 尺寸和配置构造一条 init 消息给 Worker
     const size = getCanvasSize(canvas);
+    const workerTheme = mapThemeToWorker(options.theme);
     const initMsg: RendererInitMessage = {
       type: "init",
       canvas: offscreen,
@@ -156,7 +249,7 @@ export class HexViewer {
       height: size.height,
       dpr: size.dpr,
       fontPx: options.fontPx,
-      theme: options.theme,
+      theme: workerTheme,
       scrollBarWidthPx: options.scrollBarWidthPx,
       minBytesPerRow: options.minBytesPerRow,
     };
@@ -311,7 +404,8 @@ export class HexViewer {
   }
 
   setTheme(theme: Partial<HexViewerTheme>): void {
-    this.worker.postMessage({ type: "config", theme } satisfies RendererConfigMessage);
+    const workerTheme = mapThemeToWorker(theme);
+    this.worker.postMessage({ type: "config", theme: workerTheme } satisfies RendererConfigMessage);
   }
 }
 

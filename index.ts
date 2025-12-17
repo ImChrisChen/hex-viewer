@@ -19,4 +19,11 @@ new HexViewer(canvas, {
   fontPx: getFontPx(),
   scrollBarWidthPx: 20,
   minBytesPerRow: 4,
+  theme: {
+    selectionBg: "#FF0F3F",
+    selectionFg: "#FFFF00",
+    // dim: "#888888",
+    // background: "#FFFFFF",
+    // text: "#FF0F3F"
+  }
 });
