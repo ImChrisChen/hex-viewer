@@ -9,5 +9,18 @@ body {
 }
 
 body {
-  background: #0f0f12;
+  background: #1d1d38;
+}
+
+canvas {
+  /* 让 canvas 填满其外部容器 */
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* 聚焦时不显示默认的选中描边 */
+  outline: none;
+}
+
+canvas:focus {
+  outline: none;
 }

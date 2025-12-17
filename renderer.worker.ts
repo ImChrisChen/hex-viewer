@@ -56,6 +56,7 @@ type MainToWorkerMessage =
   | PointerMessage
   | KeyMessage
   | ConfigMessage;
+// data 消息类型在主线程定义中通过联合类型扩展，这里使用类型守卫按需处理。
 
 type WorkerToMainMessage =
   | { type: "ready" }
@@ -108,15 +109,22 @@ function mergeTheme(base: HexViewerTheme, patch?: Partial<HexViewerTheme>): HexV
   };
 }
 
-function layout(addrDigits: number, bytesPerRow: number): {
+function layout(
+  addrDigits: number,
+  bytesPerRow: number,
+  addressGapChars: number,
+  hexGapChars: number,
+  sectionGapChars: number,
+): {
   addrChars: number;
   hexStartChar: number;
   asciiStartChar: number;
 } {
   // Layout is expressed in monospace "character columns".
   const addrChars = addrDigits + 1;
-  const hexStartChar = addrChars + 1;
-  const asciiStartChar = hexStartChar + bytesPerRow * 3 + 2;
+  const hexStartChar = addrChars + addressGapChars;
+  const perByteChars = 2 + hexGapChars;
+  const asciiStartChar = hexStartChar + perByteChars * bytesPerRow + sectionGapChars;
   return { addrChars, hexStartChar, asciiStartChar };
 }
 
@@ -146,12 +154,17 @@ function bytesPerRowForWidth(
   addrDigits: number,
   scrollBarWidthPx: number,
   minBytesPerRow: number,
+  addressGapChars: number,
+  hexGapChars: number,
+  sectionGapChars: number,
 ): number {
   const contentPx = Math.max(1, pxWidth - scrollBarWidthPx);
   const contentChars = Math.max(1, Math.floor(contentPx / cellW));
 
-  const baseChars = addrDigits + 2 + 2;
-  const max = Math.floor((contentChars - baseChars) / 4);
+  const addrChars = addrDigits + 1;
+  const baseChars = addrChars + addressGapChars + sectionGapChars;
+  const perByteChars = 2 + hexGapChars + 1; // two hex chars + gap + one ASCII char
+  const max = Math.floor((contentChars - baseChars) / perByteChars);
   return clamp(max, Math.max(1, Math.floor(minBytesPerRow)), 1024);
 }
 
@@ -284,6 +297,10 @@ class Renderer {
   // 当前每行字节数与地址显示位数
   private bytesPerRow = 16;
   private addrDigits: 8 | 16 = 8;
+  // 各列之间的字符间距（以“字符列数”为单位）
+  private addressGapChars = 1;
+  private hexGapChars = 1;
+  private sectionGapChars = 2;
   // 垂直滚动偏移（像素）
   private scrollY = 0;
 
@@ -299,6 +316,9 @@ class Renderer {
 
   // 当前虚拟总字节数（演示数据）
   private totalBytes = 64 * 1024 * 1024;
+
+  // 实际渲染的数据缓冲区（如果提供，则优先使用数据而非 syntheticByte）
+  private data: Uint8Array | null = null;
 
   // 画布像素尺寸
   private width = 1;
@@ -348,6 +368,17 @@ class Renderer {
 
     this.theme = mergeTheme(defaultTheme, msg.theme);
 
+    // 如果主线程传入了列间距配置，则覆盖默认值
+    if (typeof (msg as any).addressGapChars === "number") {
+      this.addressGapChars = clamp(Math.floor((msg as any).addressGapChars), 0, 8);
+    }
+    if (typeof (msg as any).hexGapChars === "number") {
+      this.hexGapChars = clamp(Math.floor((msg as any).hexGapChars), 0, 8);
+    }
+    if (typeof (msg as any).sectionGapChars === "number") {
+      this.sectionGapChars = clamp(Math.floor((msg as any).sectionGapChars), 0, 16);
+    }
+
     const { cellW, cellH, fontCss } = measureCell(this.fontPx);
     this.cellW = cellW;
     this.cellH = cellH;
@@ -360,6 +391,9 @@ class Renderer {
       this.addrDigits,
       this.scrollBarWidthPx,
       this.minBytesPerRow,
+      this.addressGapChars,
+      this.hexGapChars,
+      this.sectionGapChars,
     );
 
     this.configure();
@@ -388,6 +422,9 @@ class Renderer {
         this.addrDigits,
         this.scrollBarWidthPx,
         this.minBytesPerRow,
+        this.addressGapChars,
+        this.hexGapChars,
+        this.sectionGapChars,
       );
       this.clampScroll();
     }
@@ -647,7 +684,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
 
   // 从屏幕坐标（像素）反算出对应的字节索引（十六进制区或 ASCII 区）
   private byteIndexAt(px: number, py: number): number | null {
-    const l = layout(this.addrDigits, this.bytesPerRow);
+    const l = layout(this.addrDigits, this.bytesPerRow, this.addressGapChars, this.hexGapChars, this.sectionGapChars);
 
     const row = Math.floor((py + this.scrollY) / this.cellH);
     if (row < 0) return null;
@@ -763,6 +800,10 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
 
   // 根据偏移生成一个可重复的伪随机字节，用于演示数据
   private syntheticByte(offset: number): number {
+    // 如果有真实数据，则优先使用真实数据
+    if (this.data && offset >= 0 && offset < this.data.length) {
+      return this.data[offset]!;
+    }
     const x = (offset * 1103515245 + 12345) >>> 0;
     return (x >>> 16) & 0xff;
   }
@@ -783,14 +824,17 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     const firstRow = Math.max(0, Math.floor(this.scrollY / this.cellH));
     const yOffset = -(this.scrollY - firstRow * this.cellH);
 
-    const approxCharsPerLine = this.addrDigits + 4 + 4 * this.bytesPerRow;
+    const addrChars = this.addrDigits + 1;
+    const perByteChars = 2 + this.hexGapChars + 1; // 两个 hex 字符 + hex 间隙 + 一个 ASCII 字符
+    const baseChars = addrChars + this.addressGapChars + this.sectionGapChars;
+    const approxCharsPerLine = baseChars + perByteChars * this.bytesPerRow;
     const maxInstances = rowsVisible * (approxCharsPerLine + 8);
     this.ensureInstanceCapacity(maxInstances);
 
     const out = this.instanceData;
     let f = 0;
 
-    const l = layout(this.addrDigits, this.bytesPerRow);
+    const l = layout(this.addrDigits, this.bytesPerRow, this.addressGapChars, this.hexGapChars, this.sectionGapChars);
 
     const contentWidthPx = this.width - this.scrollBarWidthPx;
 
@@ -813,19 +857,19 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
         f = this.putChar(out, f, x, y, addr[i]!, fgAddr, bg0);
       }
 
-      {
-        const x = addr.length * this.cellW;
-        if (x < contentWidthPx) {
-          f = this.putChar(out, f, x, y, " ", fg0, bg0);
-        }
+      // 地址列和十六进制列之间的间隙（addressGapChars 个空格）
+      for (let i = 0; i < this.addressGapChars; i++) {
+        const x = (addr.length + i) * this.cellW;
+        if (x >= contentWidthPx) break;
+        f = this.putChar(out, f, x, y, " ", fg0, bg0);
       }
 
-      // 绘制十六进制列（每字节两个 hex 字符 + 一个空格）
+      // 绘制十六进制列（每字节两个 hex 字符 + hexGapChars 个空格）
       for (let b = 0; b < this.bytesPerRow; b++) {
         const off = baseOffset + b;
         const v = off < this.totalBytes ? this.syntheticByte(off) : 0;
         const s = hexUpperByte(v);
-        const hx = (l.hexStartChar + b * 3) * this.cellW;
+        const hx = (l.hexStartChar + b * (2 + this.hexGapChars)) * this.cellW;
         if (hx >= contentWidthPx) break;
         // 选中范围内的字节需要高亮显示
         const isSel =
@@ -838,11 +882,15 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
         const bg = isSel ? selBg : bg0;
         f = this.putChar(out, f, hx + 0 * this.cellW, y, s[0]!, fg, bg);
         f = this.putChar(out, f, hx + 1 * this.cellW, y, s[1]!, fg, bg);
-        f = this.putChar(out, f, hx + 2 * this.cellW, y, " ", fg0, bg);
+        // 分隔空格不使用选中背景，只使用普通背景，以避免视觉上选中块偏右
+        for (let i = 0; i < this.hexGapChars; i++) {
+          f = this.putChar(out, f, hx + (2 + i) * this.cellW, y, " ", fg0, bg0);
+        }
       }
 
-      for (let i = 0; i < 2; i++) {
-        const x = (l.hexStartChar + this.bytesPerRow * 3 + i) * this.cellW;
+      // 十六进制列和 ASCII 列之间的间隙（sectionGapChars 个空格）
+      for (let i = 0; i < this.sectionGapChars; i++) {
+        const x = (l.asciiStartChar - this.sectionGapChars + i) * this.cellW;
         if (x >= contentWidthPx) break;
         f = this.putChar(out, f, x, y, " ", fgDim, bg0);
       }
@@ -1031,6 +1079,9 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
           this.addrDigits,
           this.scrollBarWidthPx,
           this.minBytesPerRow,
+          this.addressGapChars,
+          this.hexGapChars,
+          this.sectionGapChars,
         );
         this.clampScroll();
         rebuild = true;
@@ -1085,5 +1136,25 @@ const renderer = new Renderer();
 
   if (msg.type === "config") {
     renderer.applyConfig(msg);
+    return;
+  }
+
+  // data 消息：更新 Renderer 内部的数据缓冲和总字节数，供渲染使用
+  if ((msg as any).type === "data" && (msg as any).buffer) {
+    const buffer = (msg as any).buffer as ArrayBufferLike;
+    const bytes = new Uint8Array(buffer);
+    // 直接更新私有字段：实际渲染数据和总字节数
+    (renderer as any).data = bytes;
+    (renderer as any).totalBytes = bytes.length;
+    // 更新地址位数和每行字节数以适配新数据长度
+    (renderer as any).addrDigits = addressDigitsForMaxOffset(bytes.length > 0 ? bytes.length - 1 : 0);
+    (renderer as any).bytesPerRow = bytesPerRowForWidth(
+      (renderer as any).width,
+      (renderer as any).cellW,
+      (renderer as any).addrDigits,
+      (renderer as any).scrollBarWidthPx,
+      (renderer as any).minBytesPerRow,
+    );
+    (renderer as any).clampScroll();
   }
 };

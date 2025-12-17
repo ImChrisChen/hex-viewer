@@ -24,6 +24,20 @@ export type HexViewerOptions = {
 
   /** 十六进制视图中每行的最小字节数。 */
   minBytesPerRow?: number;
+
+  /** 地址列和十六进制列之间的字符间隙（以等宽字符个数为单位）。 */
+  addressGapChars?: number;
+
+  /** 十六进制字节之间的字符间隙（每个字节 2 个 hex 字符后追加的空格数）。 */
+  hexGapChars?: number;
+
+  /** 十六进制列和 ASCII 列之间的字符间隙。 */
+  sectionGapChars?: number;
+
+  /**
+   * 初始渲染内容，可以是字符串（将按 UTF-8 编码为字节）或者 Uint8Array（直接作为字节缓冲）。
+   */
+  data?: string | Uint8Array;
 };
 
 // 发送给 Worker 端渲染器的主题类型：颜色为线性 RGBA 浮点数组
@@ -50,6 +64,9 @@ type RendererInitMessage = {
   theme?: Partial<WorkerHexViewerTheme>;
   scrollBarWidthPx?: number;
   minBytesPerRow?: number;
+  addressGapChars?: number;
+  hexGapChars?: number;
+  sectionGapChars?: number;
 };
 
 type RendererResizeMessage = {
@@ -98,13 +115,20 @@ type RendererConfigMessage = {
   theme?: Partial<WorkerHexViewerTheme>;
 };
 
+type RendererDataMessage = {
+  type: "data";
+  /** 实际渲染的数据缓冲区，以 ArrayBuffer 形式发送给 Worker。 */
+  buffer: ArrayBufferLike;
+};
+
 type MainToWorkerMessage =
   | RendererInitMessage
   | RendererResizeMessage
   | RendererWheelMessage
   | RendererPointerMessage
   | RendererKeyMessage
-  | RendererConfigMessage;
+  | RendererConfigMessage
+  | RendererDataMessage;
 
 type WorkerToMainMessage =
   | { type: "ready" }
@@ -252,8 +276,16 @@ export class HexViewer {
       theme: workerTheme,
       scrollBarWidthPx: options.scrollBarWidthPx,
       minBytesPerRow: options.minBytesPerRow,
+      addressGapChars: options.addressGapChars,
+      hexGapChars: options.hexGapChars,
+      sectionGapChars: options.sectionGapChars,
     };
     this.worker.postMessage(initMsg, [offscreen]);
+
+    // 如果提供了初始数据，在初始化消息发送后立即下发数据缓冲
+    if (options.data !== undefined) {
+      this.setData(options.data);
+    }
 
     this.onResize = () => {
       if (this.disposed) return;
@@ -406,6 +438,30 @@ export class HexViewer {
   setTheme(theme: Partial<HexViewerTheme>): void {
     const workerTheme = mapThemeToWorker(theme);
     this.worker.postMessage({ type: "config", theme: workerTheme } satisfies RendererConfigMessage);
+  }
+
+  /**
+   * 设置要渲染的内容。
+   * - 字符串会通过 UTF-8 编码为字节；
+   * - Uint8Array 会被复制一份后发送给 Worker。
+   */
+  setData(data: string | Uint8Array): void {
+    let bytes: Uint8Array;
+    if (typeof data === "string") {
+      const encoder = new TextEncoder();
+      bytes = encoder.encode(data);
+    } else {
+      // 拷贝一份，避免后续对原数组的修改影响到 Worker 端
+      bytes = new Uint8Array(data);
+    }
+
+    // 使用 slice 创建独立的 ArrayBuffer，作为可转移对象发送给 Worker
+    const buffer = bytes.buffer.slice(0) as ArrayBufferLike;
+    const msg: RendererDataMessage = {
+      type: "data",
+      buffer,
+    };
+    this.worker.postMessage(msg, [buffer]);
   }
 }
 
