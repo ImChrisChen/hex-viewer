@@ -481,6 +481,6 @@ export class HexViewer {
   }
 }
 
-export function createHexViewer(canvas: HTMLCanvasElement, options: HexViewerOptions = {}): HexViewer {
-  return new HexViewer(canvas, options);
+export function createHexViewer(el: HTMLElement | Element, options: HexViewerOptions = {}): HexViewer {
+  return new HexViewer(el, options);
 }

@@ -1,9 +1,37 @@
 {
-  "name": "hex-viewer",
-  "module": "index.ts",
+  "name": "@imccc/hex-viewer-js",
+  "version": "1.0.0",
+  "description": "A high-performance WebGPU-based hex viewer component",
   "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "dev": "bun run dev-server.ts"
+    "dev": "bun run dev-server.ts",
+    "build": "bun run build.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "hex",
+    "hex-viewer",
+    "webgpu",
+    "binary",
+    "viewer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
   },
   "devDependencies": {
     "@types/bun": "latest",
