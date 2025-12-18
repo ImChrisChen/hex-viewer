@@ -63,7 +63,8 @@ type MainToWorkerMessage =
 
 type WorkerToMainMessage =
   | { type: "ready" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "copy"; text: string };
 
 /** Colors are expressed as linear-ish RGBA floats in [0,1]. */
 type HexViewerTheme = {
@@ -662,6 +663,10 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
 
   // 命中测试：判断一个像素位置是否位于滚动条区域及其滑块上
   private hitTestScrollBar(px: number, py: number): { hit: boolean; onThumb: boolean } {
+    // 如果内容高度不足一屏，不显示滚动条，也不响应滚动条区域的点击
+    if (this.contentHeightPx() <= this.height) {
+      return { hit: false, onThumb: false };
+    }
     // 追加滚动条的轨道和滑块背景
     const sb = this.scrollBarMetrics();
     if (px < sb.x || px > sb.x + sb.w || py < 0 || py > sb.h) {
@@ -695,18 +700,22 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     const base = row * this.bytesPerRow;
     if (base >= this.totalBytes) return null;
 
+    // 计算当前行实际有多少字节（最后一行可能不满）
+    const bytesInRow = Math.min(this.bytesPerRow, this.totalBytes - base);
+
     // 使用像素计算以支持小数间距
     const hexStartPx = l.hexStartChar * this.cellW;
     const perBytePx = (2 + this.hexGapChars) * this.cellW;
-    const hexEndPx = hexStartPx + this.bytesPerRow * perBytePx;
+    // 使用实际字节数计算结束位置，并扩展到最后一个字节的完整宽度
+    const hexEndPx = hexStartPx + bytesInRow * perBytePx;
     const asciiStartPx = l.asciiStartChar * this.cellW;
-    const asciiEndPx = asciiStartPx + this.bytesPerRow * this.cellW;
+    const asciiEndPx = asciiStartPx + bytesInRow * this.cellW;
 
     // 检测十六进制区域
     if (px >= hexStartPx && px < hexEndPx) {
       const rel = px - hexStartPx;
       const b = Math.floor(rel / perBytePx);
-      if (b >= 0 && b < this.bytesPerRow) {
+      if (b >= 0 && b < bytesInRow) {
         const idx = base + b;
         return idx < this.totalBytes ? idx : null;
       }
@@ -715,7 +724,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     // 检测 ASCII 区域
     if (px >= asciiStartPx && px < asciiEndPx) {
       const b = Math.floor((px - asciiStartPx) / this.cellW);
-      if (b >= 0 && b < this.bytesPerRow) {
+      if (b >= 0 && b < bytesInRow) {
         const idx = base + b;
         return idx < this.totalBytes ? idx : null;
       }
@@ -922,12 +931,15 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
       }
     }
 
-    const sb = this.scrollBarMetrics();
-    const trackBg = this.theme.scrollTrack;
-    const thumbBg = this.scrollDragActive ? this.theme.scrollThumbActive : this.theme.scrollThumb;
+    // 仅当内容高度超过视口高度时才绘制滚动条
+    if (this.contentHeightPx() > this.height) {
+      const sb = this.scrollBarMetrics();
+      const trackBg = this.theme.scrollTrack;
+      const thumbBg = this.scrollDragActive ? this.theme.scrollThumbActive : this.theme.scrollThumb;
 
-    f = this.putRect(out, f, sb.x, 0, sb.w, sb.h, trackBg);
-    f = this.putRect(out, f, sb.x, sb.thumbY, sb.w, sb.thumbH, thumbBg);
+      f = this.putRect(out, f, sb.x, 0, sb.w, sb.h, trackBg);
+      f = this.putRect(out, f, sb.x, sb.thumbY, sb.w, sb.thumbH, thumbBg);
+    }
 
     return f / 16;
   }
@@ -1077,8 +1089,26 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     }
   }
 
-  // 键盘事件预留，目前未处理
-  onKey(_msg: KeyMessage): void { }
+  // 键盘事件：处理复制快捷键 (Cmd+C / Ctrl+C)
+  onKey(msg: KeyMessage): void {
+    if (msg.phase !== "down") return;
+
+    // 检测复制快捷键 (Cmd+C on Mac, Ctrl+C on others)
+    const isCopy = (msg.metaKey || msg.ctrlKey) && msg.key.toLowerCase() === "c";
+    if (!isCopy) return;
+
+    // 如果有选中内容，生成复制文本
+    if (this.selStart !== null && this.selEnd !== null && this.data) {
+      const selectedBytes = this.data.slice(this.selStart, this.selEnd + 1);
+      // 生成十六进制字符串（空格分隔）
+      const hexParts: string[] = [];
+      for (let i = 0; i < selectedBytes.length; i++) {
+        hexParts.push(hexUpperByte(selectedBytes[i]!));
+      }
+      const hexText = hexParts.join(" ");
+      post({ type: "copy", text: hexText });
+    }
+  }
 
   // 应用运行时配置更新（字体大小、主题等），必要时重建 GPU 资源
   applyConfig(msg: ConfigMessage): void {

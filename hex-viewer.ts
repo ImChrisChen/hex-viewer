@@ -132,7 +132,8 @@ type MainToWorkerMessage =
 
 type WorkerToMainMessage =
   | { type: "ready" }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "copy"; text: string };
 
 // 将浏览器中 canvas 的 CSS 尺寸转换为设备像素尺寸
 function getCanvasSize(canvas: HTMLCanvasElement): { width: number; height: number; dpr: number } {
@@ -277,6 +278,11 @@ export class HexViewer {
     this.worker.onmessage = (ev: MessageEvent<WorkerToMainMessage>) => {
       if (ev.data.type === "error") {
         console.error(ev.data.message);
+      } else if (ev.data.type === "copy") {
+        // 将选中内容复制到剪贴板
+        navigator.clipboard.writeText(ev.data.text).catch((err) => {
+          console.error("Failed to copy to clipboard:", err);
+        });
       }
     };
 
