@@ -171,7 +171,8 @@ function bytesPerRowForWidth(
   return clamp(max, Math.max(1, Math.floor(minBytesPerRow)), 1024);
 }
 
-function addressDigitsForMaxOffset(maxOffset: number): 8 | 16 {
+function addressDigitsForMaxOffset(maxOffset: number): 4 | 8 | 16 {
+  if (maxOffset <= 0xffff) return 4;
   if (maxOffset <= 0xffffffff) return 8;
   return 16;
 }
@@ -299,7 +300,7 @@ class Renderer {
 
   // 当前每行字节数与地址显示位数
   private bytesPerRow = 16;
-  private addrDigits: 8 | 16 = 8;
+  private addrDigits: 4 | 8 | 16 = 8;
   // 各列之间的字符间距（以“字符列数”为单位）
   private addressGapChars = 1;
   private hexGapChars = 1;
@@ -1048,7 +1049,19 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
       if (this.selAnchor === null) return;
       if ((msg.buttons & 1) === 0) return;
 
-      const idx = this.byteIndexAt(msg.x, msg.y);
+      // 拖拽超出屏幕区域时自动滚动
+      const scrollSpeed = this.cellH * 2;
+      if (msg.y < 0) {
+        this.scrollY -= scrollSpeed;
+        this.clampScroll();
+      } else if (msg.y > this.height) {
+        this.scrollY += scrollSpeed;
+        this.clampScroll();
+      }
+
+      // 计算当前位置对应的字节索引（允许超出屏幕范围）
+      const clampedY = clamp(msg.y, 0, this.height - 1);
+      const idx = this.byteIndexAt(msg.x, clampedY);
       if (idx === null) return;
       const a = this.selAnchor;
       this.selStart = Math.min(a, idx);
