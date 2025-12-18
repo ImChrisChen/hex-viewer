@@ -371,15 +371,15 @@ class Renderer {
 
     this.theme = mergeTheme(defaultTheme, msg.theme);
 
-    // 如果主线程传入了列间距配置，则覆盖默认值
+    // 如果主线程传入了列间距配置，则覆盖默认值（支持小数）
     if (typeof msg.addressGapChars === "number") {
-      this.addressGapChars = clamp(Math.floor((msg as any).addressGapChars), 0, 8);
+      this.addressGapChars = clamp(msg.addressGapChars, 0, 8);
     }
     if (typeof msg.hexGapChars === "number") {
-      this.hexGapChars = clamp(Number(msg.hexGapChars), 0, 8);
+      this.hexGapChars = clamp(msg.hexGapChars, 0, 8);
     }
     if (typeof msg.sectionGapChars === "number") {
-      this.sectionGapChars = clamp(Math.floor((msg as any).sectionGapChars), 0, 16);
+      this.sectionGapChars = clamp(msg.sectionGapChars, 0, 16);
     }
 
     const { cellW, cellH, fontCss } = measureCell(this.fontPx);
@@ -694,24 +694,30 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
     const base = row * this.bytesPerRow;
     if (base >= this.totalBytes) return null;
 
-    const charX = Math.floor(px / this.cellW);
+    // 使用像素计算以支持小数间距
+    const hexStartPx = l.hexStartChar * this.cellW;
+    const perBytePx = (2 + this.hexGapChars) * this.cellW;
+    const hexEndPx = hexStartPx + this.bytesPerRow * perBytePx;
+    const asciiStartPx = l.asciiStartChar * this.cellW;
+    const asciiEndPx = asciiStartPx + this.bytesPerRow * this.cellW;
 
-    if (charX >= l.hexStartChar && charX < l.hexStartChar + this.bytesPerRow * 3) {
-      const rel = charX - l.hexStartChar;
-      const b = Math.floor(rel / 3);
-      const sub = rel % 3;
-      if (sub === 2) {
+    // 检测十六进制区域
+    if (px >= hexStartPx && px < hexEndPx) {
+      const rel = px - hexStartPx;
+      const b = Math.floor(rel / perBytePx);
+      if (b >= 0 && b < this.bytesPerRow) {
         const idx = base + b;
         return idx < this.totalBytes ? idx : null;
       }
-      const idx = base + b;
-      return idx < this.totalBytes ? idx : null;
     }
 
-    if (charX >= l.asciiStartChar && charX < l.asciiStartChar + this.bytesPerRow) {
-      const b = charX - l.asciiStartChar;
-      const idx = base + b;
-      return idx < this.totalBytes ? idx : null;
+    // 检测 ASCII 区域
+    if (px >= asciiStartPx && px < asciiEndPx) {
+      const b = Math.floor((px - asciiStartPx) / this.cellW);
+      if (b >= 0 && b < this.bytesPerRow) {
+        const idx = base + b;
+        return idx < this.totalBytes ? idx : null;
+      }
     }
 
     return null;
