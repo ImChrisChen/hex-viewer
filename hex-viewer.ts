@@ -175,6 +175,70 @@ function hexToRgbaFloats(hex: string): [number, number, number, number] | undefi
   return [r / 255, g / 255, b / 255, a / 255];
 }
 
+function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+function parseRgbComponent(raw: string): number | undefined {
+  const s = raw.trim();
+  if (s.endsWith("%")) {
+    const pct = Number.parseFloat(s.slice(0, -1));
+    if (!Number.isFinite(pct)) return undefined;
+    return clamp01(pct / 100) * 255;
+  }
+  const v = Number.parseFloat(s);
+  if (!Number.isFinite(v)) return undefined;
+  return Math.max(0, Math.min(255, v));
+}
+
+function parseAlphaComponent(raw: string): number | undefined {
+  const s = raw.trim();
+  if (s.endsWith("%")) {
+    const pct = Number.parseFloat(s.slice(0, -1));
+    if (!Number.isFinite(pct)) return undefined;
+    return clamp01(pct / 100);
+  }
+  const v = Number.parseFloat(s);
+  if (!Number.isFinite(v)) return undefined;
+  return clamp01(v);
+}
+
+function cssRgbToRgbaFloats(input: string): [number, number, number, number] | undefined {
+  const m = input.trim().match(/^rgba?\((.*)\)$/i);
+  if (!m) return undefined;
+
+  // 支持：
+  // - rgb(r, g, b)
+  // - rgba(r, g, b, a)
+  // - rgb(r g b / a)
+  // - rgba(r g b / a)
+  const body = (m[1] ?? "").trim();
+  if (!body) return undefined;
+  const parts = body.includes("/")
+    ? body
+      .split("/")
+      .map((x) => x.trim())
+      .flatMap((seg, idx) => (idx === 0 ? seg.split(/[ ,]+/).filter(Boolean) : [seg]))
+    : body.split(/\s*,\s*/);
+
+  if (parts.length !== 3 && parts.length !== 4) return undefined;
+
+  const [p0, p1, p2, p3] = parts;
+  if (p0 === undefined || p1 === undefined || p2 === undefined) return undefined;
+
+  const r255 = parseRgbComponent(p0);
+  const g255 = parseRgbComponent(p1);
+  const b255 = parseRgbComponent(p2);
+  if (r255 === undefined || g255 === undefined || b255 === undefined) return undefined;
+  const a = parts.length === 4 ? parseAlphaComponent(p3 ?? "") : 1;
+  if (a === undefined) return undefined;
+  return [r255 / 255, g255 / 255, b255 / 255, a];
+}
+
+function colorToRgbaFloats(color: string): [number, number, number, number] | undefined {
+  return hexToRgbaFloats(color) ?? cssRgbToRgbaFloats(color);
+}
+
 // 将对外的 HexViewerTheme（十六进制字符串）映射为 Worker 使用的浮点主题对象
 function mapThemeToWorker(theme?: Partial<HexViewerTheme>): Partial<WorkerHexViewerTheme> | undefined {
   if (!theme) return undefined;
@@ -182,7 +246,7 @@ function mapThemeToWorker(theme?: Partial<HexViewerTheme>): Partial<WorkerHexVie
 
   const assign = (key: keyof WorkerHexViewerTheme, value: string | undefined) => {
     if (typeof value !== "string") return;
-    const rgba = hexToRgbaFloats(value);
+    const rgba = colorToRgbaFloats(value);
     if (!rgba) return;
     switch (key) {
       case "background":
