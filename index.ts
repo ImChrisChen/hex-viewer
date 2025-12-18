@@ -1,13 +1,15 @@
 // import { HexViewer } from "./hex-viewer.ts";
-import { createHexViewer } from './dist'
+// import { createHexViewer } from './dist'
+import { createHexViewer } from './hex-viewer'
 
 function getFontPx(): number | undefined {
+  const defaultFontSize = 30
   const q = new URLSearchParams(window.location.search);
   const raw = q.get("font");
-  if (!raw) return undefined;
+  if (!raw) return defaultFontSize;
   const n = Number(raw);
-  if (!Number.isFinite(n)) return undefined;
-  return Math.max(8, Math.min(48, Math.floor(n)));
+  if (!Number.isFinite(n)) return defaultFontSize;
+  return Math.max(12, Math.min(48, Math.floor(n)));
 }
 
 const el = document.querySelector('#container')

@@ -261,6 +261,11 @@ export class HexViewer {
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     canvas.style.display = "block";
+    canvas.style.outline = 'none';
+    canvas.style.position = 'absolute'
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    (el as HTMLElement).style.position = 'relative';
     el.appendChild(canvas);
 
     this.canvas = canvas;
