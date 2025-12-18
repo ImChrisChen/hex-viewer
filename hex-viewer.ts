@@ -232,12 +232,14 @@ function mapThemeToWorker(theme?: Partial<HexViewerTheme>): Partial<WorkerHexVie
  * 渲染发生在使用 WebGPU + OffscreenCanvas 的 Worker 中。
  */
 export class HexViewer {
+  // 绑定的容器元素
+  private readonly container: HTMLElement | Element;
   // 绑定的 canvas 元素
   readonly canvas: HTMLCanvasElement;
 
   // 渲染器 Worker 实例
   private worker: Worker;
-  // canvas 尺寸观察器
+  // 容器尺寸观察器
   private resizeObserver: ResizeObserver | null = null;
   // 是否已经销毁
   private disposed = false;
@@ -250,7 +252,17 @@ export class HexViewer {
   private readonly onKeyDown: (e: KeyboardEvent) => void;
   private readonly onKeyUp: (e: KeyboardEvent) => void;
 
-  constructor(canvas: HTMLCanvasElement, options: HexViewerOptions = {}) {
+  constructor(el: HTMLElement | Element, options: HexViewerOptions = {}) {
+
+    this.container = el;
+
+    // 创建并配置 canvas 元素
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.display = "block";
+    el.appendChild(canvas);
+
     this.canvas = canvas;
     this.canvas.tabIndex = this.canvas.tabIndex || 0;
 
@@ -289,6 +301,9 @@ export class HexViewer {
 
     this.onResize = () => {
       if (this.disposed) return;
+      // 根据容器尺寸更新 canvas 的 CSS 尺寸
+      this.canvas.style.width = this.container.clientWidth + "px";
+      this.canvas.style.height = this.container.clientHeight + "px";
       const s = getCanvasSize(this.canvas);
       const msg: RendererResizeMessage = {
         type: "resize",
@@ -411,7 +426,7 @@ export class HexViewer {
 
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.onResize());
-      this.resizeObserver.observe(this.canvas);
+      this.resizeObserver.observe(this.container);
     }
   }
 
@@ -452,7 +467,8 @@ export class HexViewer {
       bytes = encoder.encode(data);
     } else {
       // 拷贝一份，避免后续对原数组的修改影响到 Worker 端
-      bytes = new Uint8Array(data);
+      // bytes = new Uint8Array(data);
+      bytes = data
     }
 
     // 使用 slice 创建独立的 ArrayBuffer，作为可转移对象发送给 Worker

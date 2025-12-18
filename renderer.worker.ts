@@ -8,6 +8,9 @@ type InitMessage = {
   theme?: Partial<HexViewerTheme>;
   scrollBarWidthPx?: number;
   minBytesPerRow?: number;
+  addressGapChars?: number;
+  hexGapChars?: number;
+  sectionGapChars?: number;
 };
 
 type ResizeMessage = {
@@ -314,8 +317,8 @@ class Renderer {
   private scrollDragStartY = 0;
   private scrollDragStartScrollY = 0;
 
-  // 当前虚拟总字节数（演示数据）
-  private totalBytes = 64 * 1024 * 1024;
+  // 当前总字节数（初始为 0，需通过 setData 设置数据）
+  private totalBytes = 0;
 
   // 实际渲染的数据缓冲区（如果提供，则优先使用数据而非 syntheticByte）
   private data: Uint8Array | null = null;
@@ -369,13 +372,13 @@ class Renderer {
     this.theme = mergeTheme(defaultTheme, msg.theme);
 
     // 如果主线程传入了列间距配置，则覆盖默认值
-    if (typeof (msg as any).addressGapChars === "number") {
+    if (typeof msg.addressGapChars === "number") {
       this.addressGapChars = clamp(Math.floor((msg as any).addressGapChars), 0, 8);
     }
-    if (typeof (msg as any).hexGapChars === "number") {
-      this.hexGapChars = clamp(Math.floor((msg as any).hexGapChars), 0, 8);
+    if (typeof msg.hexGapChars === "number") {
+      this.hexGapChars = clamp(Number(msg.hexGapChars), 0, 8);
     }
-    if (typeof (msg as any).sectionGapChars === "number") {
+    if (typeof msg.sectionGapChars === "number") {
       this.sectionGapChars = clamp(Math.floor((msg as any).sectionGapChars), 0, 16);
     }
 
@@ -1154,6 +1157,9 @@ const renderer = new Renderer();
       (renderer as any).addrDigits,
       (renderer as any).scrollBarWidthPx,
       (renderer as any).minBytesPerRow,
+      (renderer as any).addressGapChars,
+      (renderer as any).hexGapChars,
+      (renderer as any).sectionGapChars,
     );
     (renderer as any).clampScroll();
   }
