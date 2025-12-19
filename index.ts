@@ -1,6 +1,6 @@
 // import { HexViewer } from "./hex-viewer.ts";
 // import { createHexViewer } from './dist'
-import { createHexViewer } from './hex-viewer'
+import { createHexViewer, type ThemePreset } from './hex-viewer'
 
 function getFontPx(): number | undefined {
   const defaultFontSize = 30
@@ -19,12 +19,11 @@ const hv = createHexViewer(el, {
   fontPx: getFontPx(),
   scrollBarWidthPx: 20,
   minBytesPerRow: 4,
+  // themePreset: 'light',
+  themePreset: 'dark',
   theme: {
-    // selectionBg: "#FF0F3F",
-    // selectionFg: "#FFFF00",
-    // dim: "#888888",
-    // background: "#FFFFFF",
-    // text: "#FF0F3F"
+    // 只覆盖文本颜色，其余使用 light 预设的默认值
+    // text: '#FF0F3F',
   },
   /** 地址列和十六进制列之间的字符间隙（以等宽字符个数为单位）。 */
   addressGapChars: 0.4,

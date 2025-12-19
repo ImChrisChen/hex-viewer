@@ -11,10 +11,42 @@ export type HexViewerTheme = {
   scrollThumbActive: string;
 };
 
+/** 预设主题：light / dark */
+export type ThemePreset = 'light' | 'dark';
+
+/** Light 主题预设（所有字段的默认值） */
+export const LIGHT_THEME: HexViewerTheme = {
+  background: '#FFFFFF',
+  text: '#000000',
+  address: '#666666',
+  dim: '#999999',
+  selectionBg: '#0078D4',
+  selectionFg: '#FFFFFF',
+  scrollTrack: '#EDEDED',
+  scrollThumb: '#C9C9C9',
+  scrollThumbActive: '#AFAFAF',
+};
+
+/** Dark 主题预设（所有字段的默认值） */
+export const DARK_THEME: HexViewerTheme = {
+  background: '#1E1E1E',
+  text: '#FFFFFF',
+  address: '#8EC0E4',
+  dim: '#888888',
+  selectionBg: '#0078D4',
+  selectionFg: '#FFFFFF',
+  scrollTrack: '#333333',
+  scrollThumb: '#555555',
+  scrollThumbActive: '#777777',
+};
+
 // 创建 HexViewer 时的配置选项
 export type HexViewerOptions = {
   /** 字体大小（CSS 像素），渲染器内部会限制在 [8, 48] 范围。 */
   fontPx?: number;
+
+  /** 主题预设：'light' | 'dark'。会先应用预设，再用 theme 字段覆盖。 */
+  themePreset?: ThemePreset;
 
   /** 主题颜色覆盖，使用十六进制颜色字符串（例如 "#1E1E1E"）。 */
   theme?: Partial<HexViewerTheme>;
@@ -239,6 +271,15 @@ function colorToRgbaFloats(color: string): [number, number, number, number] | un
   return hexToRgbaFloats(color) ?? cssRgbToRgbaFloats(color);
 }
 
+// 解析最终主题：先应用 themePreset 预设，再用 theme 字段覆盖
+function resolveTheme(preset?: ThemePreset, override?: Partial<HexViewerTheme>): HexViewerTheme | undefined {
+  const base = preset === 'light' ? LIGHT_THEME : preset === 'dark' ? DARK_THEME : undefined;
+  if (!base && !override) return undefined;
+  // 确保 base 存在；若没有 preset 则用空对象作为基础，避免 undefined 传播
+  const merged: HexViewerTheme = { ...base, ...override } as HexViewerTheme;
+  return merged;
+}
+
 // 将对外的 HexViewerTheme（十六进制字符串）映射为 Worker 使用的浮点主题对象
 function mapThemeToWorker(theme?: Partial<HexViewerTheme>): Partial<WorkerHexViewerTheme> | undefined {
   if (!theme) return undefined;
@@ -352,7 +393,8 @@ export class HexViewer {
 
     // 初始化时根据当前 canvas 尺寸和配置构造一条 init 消息给 Worker
     const size = getCanvasSize(canvas);
-    const workerTheme = mapThemeToWorker(options.theme);
+    const resolvedTheme = resolveTheme(options.themePreset, options.theme);
+    const workerTheme = mapThemeToWorker(resolvedTheme);
     const initMsg: RendererInitMessage = {
       type: "init",
       canvas: offscreen,

@@ -974,11 +974,12 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
 
     const encoder = this.device.createCommandEncoder();
     const view = this.ctx.getCurrentTexture().createView();
+    const bg = this.theme.background;
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
           view,
-          clearValue: { r: 0.06, g: 0.06, b: 0.07, a: 1 },
+          clearValue: { r: bg[0], g: bg[1], b: bg[2], a: bg[3] },
           loadOp: "clear",
           storeOp: "store",
         },
