@@ -84,6 +84,11 @@ type ConfigMessage = {
   type: "config";
   fontPx?: number;
   theme?: Partial<HexViewerTheme>;
+  scrollBarWidthPx?: number;
+  minBytesPerRow?: number;
+  addressGapChars?: number;
+  hexGapChars?: number;
+  sectionGapChars?: number;
 };
 
 const defaultTheme: HexViewerTheme = {
@@ -1135,6 +1140,7 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
   // 应用运行时配置更新（字体大小、主题等），必要时重建 GPU 资源
   applyConfig(msg: ConfigMessage): void {
     let rebuild = false;
+    let recalcLayout = false;
 
     if (typeof msg.fontPx === "number" && Number.isFinite(msg.fontPx)) {
       const next = clamp(Math.floor(msg.fontPx), 8, 48);
@@ -1146,24 +1152,74 @@ fn fsMain(in: VSOut) -> @location(0) vec4<f32> {
         this.cellH = cellH;
         this.fontCss = fontCss;
 
-        this.addrDigits = addressDigitsForMaxOffset(this.totalBytes - 1);
-        this.bytesPerRow = bytesPerRowForWidth(
-          this.width,
-          this.cellW,
-          this.addrDigits,
-          this.scrollBarWidthPx,
-          this.minBytesPerRow,
-          this.addressGapChars,
-          this.hexGapChars,
-          this.sectionGapChars,
-        );
-        this.clampScroll();
+        recalcLayout = true;
         rebuild = true;
       }
     }
 
     if (msg.theme) {
       this.theme = mergeTheme(this.theme, msg.theme);
+    }
+
+    // 处理滚动条宽度
+    if (typeof msg.scrollBarWidthPx === "number" && Number.isFinite(msg.scrollBarWidthPx)) {
+      const next = clamp(Math.floor(msg.scrollBarWidthPx), 8, 64);
+      if (next !== this.scrollBarWidthPx) {
+        this.scrollBarWidthPx = next;
+        recalcLayout = true;
+      }
+    }
+
+    // 处理每行最小字节数
+    if (typeof msg.minBytesPerRow === "number" && Number.isFinite(msg.minBytesPerRow)) {
+      const next = clamp(Math.floor(msg.minBytesPerRow), 1, 1024);
+      if (next !== this.minBytesPerRow) {
+        this.minBytesPerRow = next;
+        recalcLayout = true;
+      }
+    }
+
+    // 处理地址列间距
+    if (typeof msg.addressGapChars === "number") {
+      const next = clamp(msg.addressGapChars, 0, 8);
+      if (next !== this.addressGapChars) {
+        this.addressGapChars = next;
+        recalcLayout = true;
+      }
+    }
+
+    // 处理十六进制字节间距
+    if (typeof msg.hexGapChars === "number") {
+      const next = clamp(msg.hexGapChars, 0, 8);
+      if (next !== this.hexGapChars) {
+        this.hexGapChars = next;
+        recalcLayout = true;
+      }
+    }
+
+    // 处理十六进制和 ASCII 列间距
+    if (typeof msg.sectionGapChars === "number") {
+      const next = clamp(msg.sectionGapChars, 0, 16);
+      if (next !== this.sectionGapChars) {
+        this.sectionGapChars = next;
+        recalcLayout = true;
+      }
+    }
+
+    // 如果布局相关参数改变,重新计算布局
+    if (recalcLayout) {
+      this.addrDigits = addressDigitsForMaxOffset(this.totalBytes - 1);
+      this.bytesPerRow = bytesPerRowForWidth(
+        this.width,
+        this.cellW,
+        this.addrDigits,
+        this.scrollBarWidthPx,
+        this.minBytesPerRow,
+        this.addressGapChars,
+        this.hexGapChars,
+        this.sectionGapChars,
+      );
+      this.clampScroll();
     }
 
     if (rebuild) {

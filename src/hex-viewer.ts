@@ -143,8 +143,13 @@ type RendererKeyMessage = {
 type RendererConfigMessage = {
   type: "config";
   fontPx?: number;
-  // 运行时配置更新中的主题字段，使用 Worker 端的主题类型
+  // 运行时配置更新中的主题字段,使用 Worker 端的主题类型
   theme?: Partial<WorkerHexViewerTheme>;
+  scrollBarWidthPx?: number;
+  minBytesPerRow?: number;
+  addressGapChars?: number;
+  hexGapChars?: number;
+  sectionGapChars?: number;
 };
 
 type RendererDataMessage = {
@@ -349,6 +354,8 @@ export class HexViewer {
   private resizeObserver: ResizeObserver | null = null;
   // 是否已经销毁
   private disposed = false;
+  // 当前的配置选项
+  private currentOptions: HexViewerOptions;
 
   private readonly onResize: () => void;
   private readonly onWheel: (e: WheelEvent) => void;
@@ -359,6 +366,8 @@ export class HexViewer {
   private readonly onKeyUp: (e: KeyboardEvent) => void;
 
   constructor(el: HTMLElement | Element, options: HexViewerOptions = {}) {
+    // 保存当前配置
+    this.currentOptions = { ...options };
 
     this.container = el;
 
@@ -626,6 +635,59 @@ export class HexViewer {
   setTheme(theme: Partial<HexViewerTheme>): void {
     const workerTheme = mapThemeToWorker(theme);
     this.worker.postMessage({ type: "config", theme: workerTheme } satisfies RendererConfigMessage);
+  }
+
+  /**
+   * 设置配置选项。
+   * 新的配置会与原有配置合并,并立即生效重新渲染 canvas。
+   * @param options 要更新的配置选项(部分配置)
+   */
+  setOptions(options: Partial<HexViewerOptions>): void {
+    // 合并新配置到当前配置
+    this.currentOptions = { ...this.currentOptions, ...options };
+
+    // 构造配置消息
+    const msg: RendererConfigMessage = {
+      type: "config",
+    };
+
+    // 处理 fontPx
+    if (options.fontPx !== undefined) {
+      msg.fontPx = clamp(options.fontPx, 8, 48);
+    }
+
+    // 处理主题配置
+    if (options.themePreset !== undefined || options.theme !== undefined) {
+      // 重新解析完整主题(基于当前配置)
+      const resolvedTheme = resolveTheme(this.currentOptions.themePreset, this.currentOptions.theme);
+      const workerTheme = mapThemeToWorker(resolvedTheme);
+      msg.theme = workerTheme;
+    }
+
+    // 处理其他配置选项
+    if (options.scrollBarWidthPx !== undefined) {
+      msg.scrollBarWidthPx = options.scrollBarWidthPx;
+    }
+    if (options.minBytesPerRow !== undefined) {
+      msg.minBytesPerRow = options.minBytesPerRow;
+    }
+    if (options.addressGapChars !== undefined) {
+      msg.addressGapChars = options.addressGapChars;
+    }
+    if (options.hexGapChars !== undefined) {
+      msg.hexGapChars = options.hexGapChars;
+    }
+    if (options.sectionGapChars !== undefined) {
+      msg.sectionGapChars = options.sectionGapChars;
+    }
+
+    // 发送配置更新消息给 Worker
+    this.worker.postMessage(msg);
+
+    // 如果提供了新的数据,也更新数据
+    if (options.data !== undefined) {
+      this.setData(options.data);
+    }
   }
 
   /**

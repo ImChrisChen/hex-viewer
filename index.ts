@@ -16,10 +16,10 @@ const samples = {
 
 let viewer: any = null;
 let currentConfig = {
-  fontPx: 14,
+  fontPx: 34,
   minBytesPerRow: 16,
   addressGapChars: 2,
-  hexGapChars: 1,
+  hexGapChars: 0.4,
   sectionGapChars: 4,
   themePreset: 'light' as ThemePreset,
   theme: {
@@ -78,11 +78,11 @@ function applySettings() {
   const colorSelFgEl = document.getElementById('color-selection-fg') as HTMLInputElement;
 
   currentConfig = {
-    fontPx: parseInt(fontSizeEl.value),
-    minBytesPerRow: parseInt(bytesPerRowEl.value),
-    addressGapChars: parseInt(addressGapEl.value),
-    hexGapChars: parseInt(hexGapEl.value),
-    sectionGapChars: parseInt(sectionGapEl.value),
+    fontPx: parseFloat(fontSizeEl.value),
+    minBytesPerRow: parseFloat(bytesPerRowEl.value),
+    addressGapChars: parseFloat(addressGapEl.value),
+    hexGapChars: parseFloat(hexGapEl.value),
+    sectionGapChars: parseFloat(sectionGapEl.value),
     themePreset: currentConfig.themePreset,
     theme: {
       background: colorBgEl.value,
@@ -94,8 +94,18 @@ function applySettings() {
     }
   };
 
-  // 重新初始化 viewer
-  initViewer();
+  // 使用 setOptions API 动态更新配置
+  if (viewer) {
+    viewer.setOptions({
+      fontPx: currentConfig.fontPx,
+      minBytesPerRow: currentConfig.minBytesPerRow,
+      addressGapChars: currentConfig.addressGapChars,
+      hexGapChars: currentConfig.hexGapChars,
+      sectionGapChars: currentConfig.sectionGapChars,
+      themePreset: currentConfig.themePreset,
+      theme: currentConfig.theme,
+    });
+  }
 
   // 应用当前选中的示例数据
   const sampleSelectEl = document.getElementById('sample-select') as HTMLSelectElement;
@@ -136,37 +146,92 @@ function setDarkTheme() {
   currentConfig.themePreset = 'dark';
 }
 
+// 防抖函数,避免过于频繁的更新
+let updateTimeout: number | null = null;
+function debouncedApplySettings(immediate = false) {
+  if (updateTimeout) {
+    clearTimeout(updateTimeout);
+  }
+
+  if (immediate) {
+    applySettings();
+  } else {
+    updateTimeout = window.setTimeout(() => {
+      applySettings();
+    }, 150); // 150ms 防抖
+  }
+}
+
 // 初始化事件监听
 function initEventListeners() {
-  // 范围输入事件
+  // 范围输入事件 - 实时更新
   document.getElementById('font-size')?.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     updateRangeDisplay('font-size-value', target.value, 'px');
+    debouncedApplySettings();
   });
 
   document.getElementById('bytes-per-row')?.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     updateRangeDisplay('bytes-per-row-value', target.value);
+    debouncedApplySettings();
   });
 
   document.getElementById('address-gap')?.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     updateRangeDisplay('address-gap-value', target.value);
+    debouncedApplySettings();
   });
 
   document.getElementById('hex-gap')?.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     updateRangeDisplay('hex-gap-value', target.value);
+    debouncedApplySettings();
   });
 
   document.getElementById('section-gap')?.addEventListener('input', (e) => {
     const target = e.target as HTMLInputElement;
     updateRangeDisplay('section-gap-value', target.value);
+    debouncedApplySettings();
   });
 
-  // 主题按钮事件
-  document.getElementById('theme-light')?.addEventListener('click', setLightTheme);
-  document.getElementById('theme-dark')?.addEventListener('click', setDarkTheme);
+  // 颜色选择器事件 - 实时更新
+  const colorInputs = [
+    'color-background',
+    'color-text',
+    'color-address',
+    'color-dim',
+    'color-selection-bg',
+    'color-selection-fg'
+  ];
+
+  colorInputs.forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      debouncedApplySettings();
+    });
+  });
+
+  // 主题按钮事件 - 立即更新
+  document.getElementById('theme-light')?.addEventListener('click', () => {
+    setLightTheme();
+    debouncedApplySettings(true);
+  });
+
+  document.getElementById('theme-dark')?.addEventListener('click', () => {
+    setDarkTheme();
+    debouncedApplySettings(true);
+  });
+
+
+  document.querySelector('#custom-data')?.addEventListener('blur', (el) => {
+    // 获取自定义数据内容
+    // @ts-ignore
+    const content = el.target.value;
+    console.log('content:', content, el)
+    if (content && viewer) {
+      viewer.setData(content);
+    }
+  });
 
   // 示例选择事件
   document.getElementById('sample-select')?.addEventListener('change', (e) => {
@@ -181,9 +246,6 @@ function initEventListeners() {
       }
     }
   });
-
-  // 应用设置按钮
-  document.getElementById('apply-settings')?.addEventListener('click', applySettings);
 }
 
 // DOM 加载完成后初始化
