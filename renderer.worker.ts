@@ -341,12 +341,33 @@ class Renderer {
     const gpu = (self as unknown as DedicatedWorkerGlobalScope).navigator.gpu;
 
     if (!gpu) {
-      throw new Error("WebGPU is not available in this environment.");
+      const errorMsg =
+        "WebGPU 不可用。请确保:\n" +
+        "1. 使用支持 WebGPU 的浏览器(Chrome 113+, Edge 113+)\n" +
+        "2. 在浏览器中启用 WebGPU 功能\n" +
+        "3. 使用 HTTPS 或 localhost 访问页面\n\n" +
+        "Chrome/Edge 启用方法:\n" +
+        "访问 chrome://flags/#enable-unsafe-webgpu\n" +
+        "启用 'Unsafe WebGPU' 选项并重启浏览器";
+      throw new Error(errorMsg);
     }
 
-    const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+    const adapter = await gpu.requestAdapter({
+      powerPreference: "high-performance",
+      forceFallbackAdapter: false
+    });
+
     if (!adapter) {
-      throw new Error("Failed to acquire a WebGPU adapter.");
+      const errorMsg =
+        "无法获取 WebGPU 适配器。可能的原因:\n" +
+        "1. 您的 GPU 驱动程序需要更新\n" +
+        "2. 浏览器的 WebGPU 功能被禁用\n" +
+        "3. 您的 GPU 不支持 WebGPU\n\n" +
+        "解决方法:\n" +
+        "• 更新显卡驱动程序\n" +
+        "• 在 Chrome 中访问 chrome://gpu 检查 WebGPU 状态\n" +
+        "• 尝试在 chrome://flags 中启用 WebGPU 相关选项";
+      throw new Error(errorMsg);
     }
 
     this.device = await adapter.requestDevice({});
@@ -373,7 +394,7 @@ class Renderer {
 
     this.theme = mergeTheme(defaultTheme, msg.theme);
 
-    // 如果主线程传入了列间距配置，则覆盖默认值（支持小数）
+    // 如果主线程传入了列间距配置,则覆盖默认值(支持小数)
     if (typeof msg.addressGapChars === "number") {
       this.addressGapChars = clamp(msg.addressGapChars, 0, 8);
     }
@@ -465,7 +486,7 @@ class Renderer {
     const atlas = createGlyphAtlas(this.fontCss, this.cellW, this.cellH, glyphs);
     this.glyphMap = atlas.map;
 
-    const atlasRgba = atlas.rgba as unknown as ArrayBufferView<ArrayBuffer>;
+    const atlasRgba = atlas.rgba as unknown as ArrayBufferView;
 
     this.atlasTexture = this.device.createTexture({
       size: [atlas.width, atlas.height, 1],

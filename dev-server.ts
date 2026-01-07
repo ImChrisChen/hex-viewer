@@ -44,7 +44,7 @@ function serveFile(url: URL): Response {
   });
 }
 
-const port = Number(Bun.env.PORT ?? 3000);
+const port = Number(Bun.env.PORT ?? 3001);
 
 Bun.serve({
   port,
@@ -69,6 +69,15 @@ Bun.serve({
 
     if (url.pathname === "/renderer.worker.ts") {
       return serveTsFile(workerTs.pathname);
+    }
+
+    // 支持 /src/ 路径
+    if (url.pathname === "/src/index.ts") {
+      return serveTsFile(new URL("./src/index.ts", rootUrl).pathname);
+    }
+
+    if (url.pathname === "/src/hex-viewer.ts") {
+      return serveTsFile(new URL("./src/hex-viewer.ts", rootUrl).pathname);
     }
 
     return new Response("Not found", { status: 404 });

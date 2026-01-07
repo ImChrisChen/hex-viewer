@@ -15,7 +15,7 @@ export type HexViewerTheme = {
 export type ThemePreset = 'light' | 'dark';
 
 /** Light 主题预设（所有字段的默认值） */
-export const LIGHT_THEME: HexViewerTheme = {
+const LIGHT_THEME: HexViewerTheme = {
   background: '#FFFFFF',
   text: '#000000',
   address: '#666666',
@@ -28,7 +28,7 @@ export const LIGHT_THEME: HexViewerTheme = {
 };
 
 /** Dark 主题预设（所有字段的默认值） */
-export const DARK_THEME: HexViewerTheme = {
+const DARK_THEME: HexViewerTheme = {
   background: '#1E1E1E',
   text: '#FFFFFF',
   address: '#8EC0E4',
@@ -382,7 +382,9 @@ export class HexViewer {
 
     this.worker.onmessage = (ev: MessageEvent<WorkerToMainMessage>) => {
       if (ev.data.type === "error") {
-        console.error(ev.data.message);
+        console.error('hexviewer error: ', ev.data);
+        // 在容器中显示错误信息
+        this.showError(ev.data.message);
       } else if (ev.data.type === "copy") {
         // 将选中内容复制到剪贴板
         navigator.clipboard.writeText(ev.data.text).catch((err) => {
@@ -545,6 +547,60 @@ export class HexViewer {
       this.resizeObserver = new ResizeObserver(() => this.onResize());
       this.resizeObserver.observe(this.container);
     }
+  }
+
+  private showError(message: string): void {
+    // 隐藏 canvas
+    this.canvas.style.display = 'none';
+
+    // 创建错误提示元素
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f8f9fa;
+      color: #333;
+      padding: 20px;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    const icon = document.createElement('div');
+    icon.textContent = '⚠️';
+    icon.style.cssText = 'font-size: 48px; margin-bottom: 16px;';
+
+    const title = document.createElement('div');
+    title.textContent = 'WebGPU 不可用';
+    title.style.cssText = 'font-size: 18px; font-weight: 600; margin-bottom: 12px; color: #2c3e50;';
+
+    const messageDiv = document.createElement('pre');
+    messageDiv.textContent = message;
+    messageDiv.style.cssText = `
+      font-size: 13px;
+      line-height: 1.6;
+      color: #555;
+      background: white;
+      padding: 16px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      max-width: 600px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0;
+    `;
+
+    errorDiv.appendChild(icon);
+    errorDiv.appendChild(title);
+    errorDiv.appendChild(messageDiv);
+
+    this.container.appendChild(errorDiv);
   }
 
   destroy(): void {
