@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
+    "target": "esnext",
     "types": ["vite/client"],
     "strict": true,
+    "moduleResolution": "bundler",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,

@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { HexViewer, type ThemePreset, type HexViewerTheme } from '@imccc/hex-viewer-js/react';
 import './App.css';
+import bigData from '../comments.json';
 
 // 示例数据
 const samples = {
   hello: 'Hello, World! 你好,世界!\nWelcome to HexViewer Demo.\n这是一个高性能的十六进制查看器。',
-  lorem: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.',
   binary: new Uint8Array([
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -14,6 +14,7 @@ const samples = {
     0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8, 0xF7, 0xF6, 0xF5, 0xF4, 0xF3, 0xF2, 0xF1, 0xF0,
   ]),
   unicode: '🚀 Unicode 测试\n中文字符:你好世界\nEmoji: 😀😃😄😁😆😅🤣😂\n日本語:こんにちは\n한국어: 안녕하세요\nРусский: Привет',
+  bigdata: bigData,
 };
 
 const lightTheme: Partial<HexViewerTheme> = {
@@ -34,22 +35,43 @@ const darkTheme: Partial<HexViewerTheme> = {
   selectionFg: '#FFFFFF',
 };
 
+// 将数据转换为可显示的文本
+function dataToDisplayText(value: unknown): string {
+  if (value instanceof Uint8Array) {
+    return Array.from(value).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+}
+
 function App() {
   const [sampleKey, setSampleKey] = useState<keyof typeof samples | 'custom'>('hello');
   const [customData, setCustomData] = useState('');
+  const [editableData, setEditableData] = useState('');
   const [themePreset, setThemePreset] = useState<ThemePreset>('light');
-  const [fontSize, setFontSize] = useState(34);
-  const [addressGap, setAddressGap] = useState(2);
-  const [hexGap, setHexGap] = useState(1);
-  const [sectionGap, setSectionGap] = useState(4);
+  const [fontSize, setFontSize] = useState(32);
+  const [addressGap, setAddressGap] = useState(0.4);
+  const [hexGap, setHexGap] = useState(0.6);
+  const [sectionGap, setSectionGap] = useState(1);
   const [colors, setColors] = useState(lightTheme);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // 初始化可编辑数据
+  useEffect(() => {
+    if (sampleKey !== 'custom') {
+      setEditableData(dataToDisplayText(samples[sampleKey]));
+    }
+  }, [sampleKey]);
 
   const data = useMemo(() => {
     if (sampleKey === 'custom') {
       return customData;
     }
-    return samples[sampleKey];
-  }, [sampleKey, customData]);
+    // 使用编辑后的数据
+    return editableData;
+  }, [sampleKey, customData, editableData]);
 
   const theme = useMemo(() => colors, [colors]);
 
@@ -61,6 +83,52 @@ function App() {
   const handleColorChange = useCallback((key: keyof HexViewerTheme, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  // 生成代码示例
+  const exampleCode = useMemo(() => {
+    const themeCode = themePreset === 'light' ? 'light' : 'dark';
+    const customTheme = Object.entries(colors)
+      .map(([key, value]) => `    ${key}: '${value}'`)
+      .join(',\n');
+
+    const dataPreview = sampleKey === 'custom' 
+      ? customData.slice(0, 50) + '...' 
+      : editableData.slice(0, 50) + '...';
+
+    return `import { HexViewer } from '@imccc/hex-viewer-js/react';
+
+function MyComponent() {
+  const data = \`${dataPreview}\`;
+
+  const customTheme = {
+${customTheme}
+  };
+
+  return (
+    <HexViewer
+      data={data}
+      themePreset="${themeCode}"
+      theme={customTheme}
+      fontPx={${fontSize}}
+      addressGapChars={${addressGap}}
+      hexGapChars={${hexGap}}
+      sectionGapChars={${sectionGap}}
+    />
+  );
+}`;
+  }, [themePreset, colors, fontSize, addressGap, hexGap, sectionGap, sampleKey, customData, editableData]);
+
+  const copyCode = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(exampleCode);
+      setCopySuccess(true);
+      setTimeout(() => {
+        setCopySuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error('复制失败:', err);
+    }
+  }, [exampleCode]);
 
   return (
     <div className="container">
@@ -83,20 +151,30 @@ function App() {
                 onChange={(e) => setSampleKey(e.target.value as keyof typeof samples | 'custom')}
               >
                 <option value="hello">Hello World</option>
-                <option value="lorem">Lorem Ipsum</option>
+                <option value="bigdata">JSON</option>
                 <option value="binary">二进制数据</option>
                 <option value="unicode">Unicode 字符</option>
                 <option value="custom">自定义数据</option>
               </select>
             </div>
-            {sampleKey === 'custom' && (
+            {sampleKey === 'custom' ? (
               <div className="control-group">
                 <label className="control-label">自定义数据</label>
                 <textarea
-                  className="control-input"
+                  className="control-input data-textarea"
                   placeholder="输入文本或十六进制数据..."
                   value={customData}
                   onChange={(e) => setCustomData(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="control-group">
+                <label className="control-label">原始数据 (可编辑)</label>
+                <textarea
+                  className="control-input data-textarea"
+                  placeholder="编辑后会实时渲染..."
+                  value={editableData}
+                  onChange={(e) => setEditableData(e.target.value)}
                 />
               </div>
             )}
@@ -240,9 +318,20 @@ function App() {
             </div>
           </div>
 
-          {/* 操作按钮 */}
+          {/* 代码示例 */}
           <div className="section">
-            <div className="info-badge">✨ 修改参数后会自动实时更新</div>
+            <div className="section-title">
+              📝 使用示例
+              <button 
+                className={`copy-btn ${copySuccess ? 'copy-success' : ''}`} 
+                onClick={copyCode}
+              >
+                {copySuccess ? '✓ 已复制' : '📋 复制代码'}
+              </button>
+            </div>
+            <div className="code-preview">
+              <pre><code>{exampleCode}</code></pre>
+            </div>
           </div>
         </div>
 

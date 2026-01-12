@@ -3,14 +3,11 @@ import { resolve } from "path";
 import vue from "@vitejs/plugin-vue";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
-import { comlink } from "vite-plugin-comlink";
-
 
 export default defineConfig({
   plugins: [
     vue(),
     react(),
-    // comlink(),
     dts({
       include: ["src/**/*.ts", "src/**/*.vue"],
       exclude: ["src/**/*.worker.ts"],
@@ -44,7 +41,17 @@ export default defineConfig({
   },
   // Worker 配置 - 内联到主代码中
   worker: {
-    // plugins: () => [comlink()],
     format: "es",
+  },
+  // 开发服务器配置
+  server: {
+    port: 3001,
+    // 监听 src 目录变化实现热更新
+    watch: {
+      // 监听整个项目目录
+      usePolling: false,
+    },
+    // 启用 HMR
+    hmr: true,
   },
 });

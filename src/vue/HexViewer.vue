@@ -7,7 +7,7 @@ type HexViewerInstance = ReturnType<typeof createHexViewer>;
 const props = defineProps({
   /** 要显示的十六进制数据 */
   data: {
-    type: [String, Object] as PropType<string | Uint8Array>,
+    type: [String, Object, Array] as PropType<string | Uint8Array | object | unknown[]>,
     default: undefined,
   },
   /** 字体大小（CSS 像素） */
@@ -126,6 +126,7 @@ watch(
   () => props.data,
   (newData) => {
     if (newData !== undefined) {
+      console.log('props.data:', props.data)
       viewer?.setData(newData);
     }
   }

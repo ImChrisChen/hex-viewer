@@ -72,7 +72,7 @@ export type HexViewerOptions = {
   /**
    * 初始渲染内容，可以是字符串（将按 UTF-8 编码为字节）或者 Uint8Array（直接作为字节缓冲）。
    */
-  data?: string | Uint8Array;
+  data?: string | Uint8Array | object | unknown[];
 };
 
 // 发送给 Worker 端渲染器的主题类型：颜色为线性 RGBA 浮点数组
@@ -689,17 +689,28 @@ export class HexViewer {
   /**
    * 设置要渲染的内容。
    * - 字符串会通过 UTF-8 编码为字节；
-   * - Uint8Array 会被复制一份后发送给 Worker。
+   * - Uint8Array 直接使用；
+   * - 对象/数组等会先 JSON.stringify 后再编码为字节。
    */
-  setData(data: string | Uint8Array): void {
+  setData(data: string | Uint8Array | object | unknown[]): void {
     let bytes: Uint8Array;
-    if (typeof data === "string") {
+
+    if (data instanceof Uint8Array) {
+      // Uint8Array 直接使用
+      bytes = data;
+    } else if (typeof data === "string") {
+      // 字符串直接编码
       const encoder = new TextEncoder();
       bytes = encoder.encode(data);
+    } else if (data !== null && typeof data === "object") {
+      // 对象/数组序列化为 JSON 字符串后编码
+      const encoder = new TextEncoder();
+      const jsonStr = JSON.stringify(data, null, 2);
+      bytes = encoder.encode(jsonStr);
     } else {
-      // 拷贝一份，避免后续对原数组的修改影响到 Worker 端
-      // bytes = new Uint8Array(data);
-      bytes = data
+      // 其他类型转为字符串后编码
+      const encoder = new TextEncoder();
+      bytes = encoder.encode(String(data));
     }
 
     // 使用 slice 创建独立的 ArrayBuffer，作为可转移对象发送给 Worker
