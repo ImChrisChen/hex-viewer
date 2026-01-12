@@ -1,13 +1,14 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HexViewer 演示 - 高性能 WebGPU 十六进制查看器</title>
+  <title>HexViewer Demo - High Performance WebGPU Hex Viewer</title>
   <link rel="stylesheet" href="./index.css" />
   <script src="./index.ts" type="module"></script>
   <style>
+    /* ... (styles remain unchanged) ... */
     * {
       margin: 0;
       padding: 0;
@@ -21,6 +22,8 @@
       padding: 20px;
       color: #333;
     }
+
+    /* ... (rest of styles) ... */
 
     .container {
       max-width: 1400px;
@@ -271,36 +274,36 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🔍 HexViewer 演示</h1>
-      <p>高性能 WebGPU 十六进制查看器 - 实时配置与预览</p>
+      <h1>🔍 HexViewer Demo</h1>
+      <p>High Performance WebGPU Hex Viewer - Live Config & Preview</p>
     </div>
 
     <div class="main-content">
-      <!-- 左侧控制面板 -->
+      <!-- Sidebar -->
       <div class="sidebar">
-        <!-- 示例数据选择 -->
+        <!-- Sample Data -->
         <div class="section">
-          <div class="section-title">📄 示例数据</div>
+          <div class="section-title">📄 Sample Data</div>
           <div class="control-group">
-            <label class="control-label">选择示例</label>
+            <label class="control-label">Select Sample</label>
             <select id="sample-select" class="control-input">
               <option value="hello">Hello World</option>
-              <option value="binary">二进制数据</option>
-              <option value="unicode">Unicode 字符</option>
-              <option value="custom">自定义数据</option>
+              <option value="binary">Binary Data</option>
+              <option value="unicode">Unicode Characters</option>
+              <option value="custom">Custom Data</option>
             </select>
           </div>
           <div class="control-group" id="custom-data-group" style="display: none;">
-            <label class="control-label">自定义数据</label>
-            <textarea id="custom-data" class="control-input" placeholder="输入文本或十六进制数据..."></textarea>
+            <label class="control-label">Custom Data</label>
+            <textarea id="custom-data" class="control-input" placeholder="Enter text or hex data..."></textarea>
           </div>
         </div>
 
-        <!-- 主题设置 -->
+        <!-- Theme Settings -->
         <div class="section">
-          <div class="section-title">🎨 主题设置</div>
+          <div class="section-title">🎨 Theme Settings</div>
           <div class="control-group">
-            <label class="control-label">主题预设</label>
+            <label class="control-label">Preset</label>
             <div class="button-group">
               <button class="btn btn-secondary" id="theme-light">☀️ Light</button>
               <button class="btn btn-primary" id="theme-dark">🌙 Dark</button>
@@ -308,74 +311,74 @@
           </div>
           <div class="color-grid">
             <div class="control-group">
-              <label class="control-label">背景色</label>
+              <label class="control-label">Background</label>
               <input type="color" id="color-background" class="control-input" value="#FFFFFF">
             </div>
             <div class="control-group">
-              <label class="control-label">文本色</label>
+              <label class="control-label">Text</label>
               <input type="color" id="color-text" class="control-input" value="#000000">
             </div>
             <div class="control-group">
-              <label class="control-label">地址色</label>
+              <label class="control-label">Address</label>
               <input type="color" id="color-address" class="control-input" value="#666666">
             </div>
             <div class="control-group">
-              <label class="control-label">暗色</label>
+              <label class="control-label">Dim</label>
               <input type="color" id="color-dim" class="control-input" value="#999999">
             </div>
             <div class="control-group">
-              <label class="control-label">选中背景</label>
+              <label class="control-label">Selection Bg</label>
               <input type="color" id="color-selection-bg" class="control-input" value="#0078D4">
             </div>
             <div class="control-group">
-              <label class="control-label">选中前景</label>
+              <label class="control-label">Selection Fg</label>
               <input type="color" id="color-selection-fg" class="control-input" value="#FFFFFF">
             </div>
           </div>
         </div>
 
-        <!-- 显示设置 -->
+        <!-- Display Settings -->
         <div class="section">
-          <div class="section-title">⚙️ 显示设置</div>
+          <div class="section-title">⚙️ Display Settings</div>
           <div class="control-group">
             <label class="control-label">
-              字体大小 <span class="range-value" id="font-size-value">34px</span>
+              Font Size <span class="range-value" id="font-size-value">34px</span>
             </label>
             <input type="range" id="font-size" class="control-input" min="8" max="48" value="34" step="1">
           </div>
           <div class="control-group">
             <label class="control-label">
-              每行字节数(根据宽度自适应) <span class="range-value" id="bytes-per-row-value">16</span>
+              Bytes Per Row (Auto) <span class="range-value" id="bytes-per-row-value">16</span>
             </label>
             <input type="range" id="bytes-per-row" disabled class="control-input" min="4" max="32" value="16" step="1">
           </div>
           <div class="control-group">
             <label class="control-label">
-              地址间隙 <span class="range-value" id="address-gap-value">2</span>
+              Address Gap <span class="range-value" id="address-gap-value">2</span>
             </label>
             <input type="range" id="address-gap" class="control-input" min="0" max="8" value="2" step="0.1">
           </div>
           <div class="control-group">
             <label class="control-label">
-              十六进制间隙 <span class="range-value" id="hex-gap-value">1</span>
+              Hex Gap <span class="range-value" id="hex-gap-value">1</span>
             </label>
             <input type="range" id="hex-gap" class="control-input" min="0" max="4" value="1" step="0.1">
           </div>
           <div class="control-group">
             <label class="control-label">
-              列间隙 <span class="range-value" id="section-gap-value">4</span>
+              Section Gap <span class="range-value" id="section-gap-value">4</span>
             </label>
             <input type="range" id="section-gap" class="control-input" min="0" max="8" value="4" step="0.1">
           </div>
         </div>
 
-        <!-- 操作按钮 -->
+        <!-- Action Buttons -->
         <div class="section">
-          <div class="info-badge">✨ 修改参数后会自动实时更新</div>
+          <div class="info-badge">✨ Real-time updates on change</div>
         </div>
       </div>
 
-      <!-- 右侧预览区域 -->
+      <!-- Viewer Container -->
       <div class="viewer-container">
         <div id="hex-viewer-display"></div>
       </div>

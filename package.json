@@ -24,8 +24,14 @@
     "dist"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev:lib": "vite",
+    "dev:purejs": "vite example/purejs",
+    "dev:vue": "cd example/vue && bun dev",
+    "dev:react": "cd example/react && bun dev",
+    "build:lib": "vite build",
+    "build:all": "bun build:lib && bun build:vue && bun build:react",
+    "build:vue": "cd example/vue && bun run build",
+    "build:react": "cd example/react && bun run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

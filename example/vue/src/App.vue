@@ -3,9 +3,10 @@ import { ref, computed, reactive, watch } from 'vue';
 import { HexViewer, type ThemePreset, type HexViewerTheme } from '@imccc/hex-viewer-js/vue';
 import bigData from '../comments.json';
 
-// 示例数据
+// Sample Data
 const samples = {
-  hello: 'Hello, World! 你好,世界!\nWelcome to HexViewer Demo.\n这是一个高性能的十六进制查看器。',
+  hello: 'Hello, World! Greetings from HexViewer Vue Demo.\nThis is a high-performance hex viewer.',
+  bigdata: bigData,
   binary: new Uint8Array([
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -13,8 +14,7 @@ const samples = {
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
     0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8, 0xF7, 0xF6, 0xF5, 0xF4, 0xF3, 0xF2, 0xF1, 0xF0,
   ]),
-  unicode: '🚀 Unicode 测试\n中文字符:你好世界\nEmoji: 😀😃😄😁😆😅🤣😂\n日本語:こんにちは\n한국어: 안녕하세요\nРусский: Привет',
-  bigdata: bigData,
+  unicode: '🚀 Unicode Test\nChinese: 你好世界\nEmoji: 😀😃😄😁😆😅🤣😂\nJapanese: こんにちは\nKorean: 안녕하세요\nRussian: Привет',
 };
 
 const lightTheme: Partial<HexViewerTheme> = {
@@ -46,7 +46,7 @@ const sectionGap = ref(1);
 const colors = reactive({ ...lightTheme });
 const copySuccess = ref(false);
 
-// 将数据转换为可显示的文本
+// Convert to display text
 function dataToDisplayText(value: unknown): string {
   if (value instanceof Uint8Array) {
     return Array.from(value).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
@@ -57,7 +57,7 @@ function dataToDisplayText(value: unknown): string {
   return String(value);
 }
 
-// 初始化可编辑数据
+// Initialize editable data
 watch(sampleKey, (key) => {
   if (key !== 'custom') {
     editableData.value = dataToDisplayText(samples[key]);
@@ -68,13 +68,13 @@ const data = computed(() => {
   if (sampleKey.value === 'custom') {
     return customData.value;
   }
-  // 使用编辑后的数据
+  // Use editable data
   return editableData.value;
 });
 
 const theme = computed(() => ({ ...colors }));
 
-// 生成代码示例
+// Generate code example
 const exampleCode = computed(() => {
   const themeCode = themePreset.value === 'light' ? 'light' : 'dark';
   const customTheme = Object.entries(colors)
@@ -118,7 +118,7 @@ async function copyCode() {
       copySuccess.value = false;
     }, 2000);
   } catch (err) {
-    console.error('复制失败:', err);
+    console.error('Copy failed:', err);
   }
 }
 </script>
@@ -126,41 +126,43 @@ async function copyCode() {
 <template>
   <div class="container">
     <div class="header">
-      <h1>🔍 HexViewer Vue 演示</h1>
-      <p>高性能 WebGPU 十六进制查看器 - Vue 组件</p>
+      <h1>🔍 HexViewer Vue Demo</h1>
+      <p>High Performance WebGPU Hex Viewer - Vue Component</p>
     </div>
 
     <div class="main-content">
-      <!-- 左侧控制面板 -->
+      <!-- Sidebar -->
       <div class="sidebar">
-        <!-- 示例数据选择 -->
+        <!-- Sample Data -->
         <div class="section">
-          <div class="section-title">📄 示例数据</div>
+          <div class="section-title">📄 Sample Data</div>
           <div class="control-group">
-            <label class="control-label">选择示例</label>
+            <label class="control-label">Select Sample</label>
             <select v-model="sampleKey" class="control-input">
               <option value="hello">Hello World</option>
               <option value="bigdata">JSON</option>
-              <option value="binary">二进制数据</option>
-              <option value="unicode">Unicode 字符</option>
-              <option value="custom">自定义数据</option>
+              <option value="binary">Binary Data</option>
+              <option value="unicode">Unicode Characters</option>
+              <option value="custom">Custom Data</option>
             </select>
           </div>
           <div v-if="sampleKey === 'custom'" class="control-group">
-            <label class="control-label">自定义数据</label>
-            <textarea v-model="customData" class="control-input data-textarea" placeholder="输入文本或十六进制数据..."></textarea>
+            <label class="control-label">Custom Data</label>
+            <textarea v-model="customData" class="control-input data-textarea"
+              placeholder="Enter text or hex data..."></textarea>
           </div>
           <div v-else class="control-group">
-            <label class="control-label">原始数据 (可编辑)</label>
-            <textarea v-model="editableData" class="control-input data-textarea" placeholder="编辑后会实时渲染..."></textarea>
+            <label class="control-label">Raw Data (Editable)</label>
+            <textarea v-model="editableData" class="control-input data-textarea"
+              placeholder="Edit to preview..."></textarea>
           </div>
         </div>
 
-        <!-- 主题设置 -->
+        <!-- Theme Settings -->
         <div class="section">
-          <div class="section-title">🎨 主题设置</div>
+          <div class="section-title">🎨 Theme Settings</div>
           <div class="control-group">
-            <label class="control-label">主题预设</label>
+            <label class="control-label">Preset</label>
             <div class="button-group">
               <button :class="['btn', themePreset === 'light' ? 'btn-primary' : 'btn-secondary']"
                 @click="handleThemeChange('light')">
@@ -174,76 +176,77 @@ async function copyCode() {
           </div>
           <div class="color-grid">
             <div class="control-group">
-              <label class="control-label">背景色</label>
+              <label class="control-label">Background</label>
               <input type="color" v-model="colors.background" class="control-input" />
             </div>
             <div class="control-group">
-              <label class="control-label">文本色</label>
+              <label class="control-label">Text</label>
               <input type="color" v-model="colors.text" class="control-input" />
             </div>
             <div class="control-group">
-              <label class="control-label">地址色</label>
+              <label class="control-label">Address</label>
               <input type="color" v-model="colors.address" class="control-input" />
             </div>
             <div class="control-group">
-              <label class="control-label">暗色</label>
+              <label class="control-label">Dim</label>
               <input type="color" v-model="colors.dim" class="control-input" />
             </div>
             <div class="control-group">
-              <label class="control-label">选中背景</label>
+              <label class="control-label">Selection Bg</label>
               <input type="color" v-model="colors.selectionBg" class="control-input" />
             </div>
             <div class="control-group">
-              <label class="control-label">选中前景</label>
+              <label class="control-label">Selection Fg</label>
               <input type="color" v-model="colors.selectionFg" class="control-input" />
             </div>
           </div>
         </div>
 
-        <!-- 显示设置 -->
+        <!-- Display Settings -->
         <div class="section">
-          <div class="section-title">⚙️ 显示设置</div>
+          <div class="section-title">⚙️ Display Settings</div>
           <div class="control-group">
             <label class="control-label">
-              字体大小 <span class="range-value">{{ fontSize }}px</span>
+              Font Size <span class="range-value">{{ fontSize }}px</span>
             </label>
             <input type="range" v-model.number="fontSize" class="control-input" min="8" max="48" />
           </div>
           <div class="control-group">
             <label class="control-label">
-              地址间隙 <span class="range-value">{{ addressGap }}</span>
+              Address Gap <span class="range-value">{{ addressGap }}</span>
             </label>
             <input type="range" v-model.number="addressGap" class="control-input" min="0" max="8" step="0.1" />
           </div>
           <div class="control-group">
             <label class="control-label">
-              十六进制间隙 <span class="range-value">{{ hexGap }}</span>
+              Hex Gap <span class="range-value">{{ hexGap }}</span>
             </label>
             <input type="range" v-model.number="hexGap" class="control-input" min="0" max="4" step="0.1" />
           </div>
           <div class="control-group">
             <label class="control-label">
-              列间隙 <span class="range-value">{{ sectionGap }}</span>
+              Section Gap <span class="range-value">{{ sectionGap }}</span>
             </label>
             <input type="range" v-model.number="sectionGap" class="control-input" min="0" max="8" step="0.1" />
           </div>
         </div>
 
-        <!-- 代码示例 -->
+        <!-- Code Example -->
         <div class="section">
           <div class="section-title">
-            📝 使用示例
+            📝 Usage Example
             <button class="copy-btn" :class="{ 'copy-success': copySuccess }" @click="copyCode">
-              {{ copySuccess ? '✓ 已复制' : '📋 复制代码' }}
+              {{ copySuccess ? '✓ Copied' : '📋 Copy Code' }}
             </button>
           </div>
           <div class="code-preview">
             <pre><code>{{ exampleCode }}</code></pre>
           </div>
         </div>
+
       </div>
 
-      <!-- 右侧预览区域 -->
+      <!-- Viewer Container -->
       <div class="viewer-container">
         <HexViewer class="hex-viewer-wrapper" :data="data" :themePreset="themePreset" :theme="theme" :fontPx="fontSize"
           :addressGapChars="addressGap" :hexGapChars="hexGap" :sectionGapChars="sectionGap" />

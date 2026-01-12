@@ -3,9 +3,10 @@ import { HexViewer, type ThemePreset, type HexViewerTheme } from '@imccc/hex-vie
 import './App.css';
 import bigData from '../comments.json';
 
-// 示例数据
+// Sample Data
 const samples = {
-  hello: 'Hello, World! 你好,世界!\nWelcome to HexViewer Demo.\n这是一个高性能的十六进制查看器。',
+  hello: 'Hello, World! Greetings from HexViewer React Demo.\nThis is a high-performance hex viewer.',
+  bigdata: bigData,
   binary: new Uint8Array([
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -13,8 +14,7 @@ const samples = {
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
     0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8, 0xF7, 0xF6, 0xF5, 0xF4, 0xF3, 0xF2, 0xF1, 0xF0,
   ]),
-  unicode: '🚀 Unicode 测试\n中文字符:你好世界\nEmoji: 😀😃😄😁😆😅🤣😂\n日本語:こんにちは\n한국어: 안녕하세요\nРусский: Привет',
-  bigdata: bigData,
+  unicode: '🚀 Unicode Test\nChinese: 你好世界\nEmoji: 😀😃😄😁😆😅🤣😂\nJapanese: こんにちは\nKorean: 안녕하세요\nRussian: Привет',
 };
 
 const lightTheme: Partial<HexViewerTheme> = {
@@ -35,7 +35,7 @@ const darkTheme: Partial<HexViewerTheme> = {
   selectionFg: '#FFFFFF',
 };
 
-// 将数据转换为可显示的文本
+// Convert to display text
 function dataToDisplayText(value: unknown): string {
   if (value instanceof Uint8Array) {
     return Array.from(value).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
@@ -58,7 +58,7 @@ function App() {
   const [colors, setColors] = useState(lightTheme);
   const [copySuccess, setCopySuccess] = useState(false);
 
-  // 初始化可编辑数据
+  // Initialize editable data
   useEffect(() => {
     if (sampleKey !== 'custom') {
       setEditableData(dataToDisplayText(samples[sampleKey]));
@@ -69,7 +69,7 @@ function App() {
     if (sampleKey === 'custom') {
       return customData;
     }
-    // 使用编辑后的数据
+    // Use editable data
     return editableData;
   }, [sampleKey, customData, editableData]);
 
@@ -84,7 +84,7 @@ function App() {
     setColors(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // 生成代码示例
+  // Generate code example
   const exampleCode = useMemo(() => {
     const themeCode = themePreset === 'light' ? 'light' : 'dark';
     const customTheme = Object.entries(colors)
@@ -126,25 +126,25 @@ ${customTheme}
         setCopySuccess(false);
       }, 2000);
     } catch (err) {
-      console.error('复制失败:', err);
+      console.error('Copy failed:', err);
     }
   }, [exampleCode]);
 
   return (
     <div className="container">
       <div className="header">
-        <h1>🔍 HexViewer React 演示</h1>
-        <p>高性能 WebGPU 十六进制查看器 - React 组件</p>
+        <h1>🔍 HexViewer React Demo</h1>
+        <p>High Performance WebGPU Hex Viewer - React Component</p>
       </div>
 
       <div className="main-content">
-        {/* 左侧控制面板 */}
+        {/* Sidebar */}
         <div className="sidebar">
-          {/* 示例数据选择 */}
+          {/* Sample Data */}
           <div className="section">
-            <div className="section-title">📄 示例数据</div>
+            <div className="section-title">📄 Sample Data</div>
             <div className="control-group">
-              <label className="control-label">选择示例</label>
+              <label className="control-label">Select Sample</label>
               <select
                 className="control-input"
                 value={sampleKey}
@@ -152,27 +152,27 @@ ${customTheme}
               >
                 <option value="hello">Hello World</option>
                 <option value="bigdata">JSON</option>
-                <option value="binary">二进制数据</option>
-                <option value="unicode">Unicode 字符</option>
-                <option value="custom">自定义数据</option>
+                <option value="binary">Binary Data</option>
+                <option value="unicode">Unicode Characters</option>
+                <option value="custom">Custom Data</option>
               </select>
             </div>
             {sampleKey === 'custom' ? (
               <div className="control-group">
-                <label className="control-label">自定义数据</label>
+                <label className="control-label">Custom Data</label>
                 <textarea
                   className="control-input data-textarea"
-                  placeholder="输入文本或十六进制数据..."
+                  placeholder="Enter text or hex data..."
                   value={customData}
                   onChange={(e) => setCustomData(e.target.value)}
                 />
               </div>
             ) : (
               <div className="control-group">
-                <label className="control-label">原始数据 (可编辑)</label>
+                <label className="control-label">Raw Data (Editable)</label>
                 <textarea
                   className="control-input data-textarea"
-                  placeholder="编辑后会实时渲染..."
+                  placeholder="Edit to preview..."
                   value={editableData}
                   onChange={(e) => setEditableData(e.target.value)}
                 />
@@ -180,11 +180,11 @@ ${customTheme}
             )}
           </div>
 
-          {/* 主题设置 */}
+          {/* Theme Settings */}
           <div className="section">
-            <div className="section-title">🎨 主题设置</div>
+            <div className="section-title">🎨 Theme Settings</div>
             <div className="control-group">
-              <label className="control-label">主题预设</label>
+              <label className="control-label">Preset</label>
               <div className="button-group">
                 <button
                   className={`btn ${themePreset === 'light' ? 'btn-primary' : 'btn-secondary'}`}
@@ -202,7 +202,7 @@ ${customTheme}
             </div>
             <div className="color-grid">
               <div className="control-group">
-                <label className="control-label">背景色</label>
+                <label className="control-label">Background</label>
                 <input
                   type="color"
                   className="control-input"
@@ -211,7 +211,7 @@ ${customTheme}
                 />
               </div>
               <div className="control-group">
-                <label className="control-label">文本色</label>
+                <label className="control-label">Text</label>
                 <input
                   type="color"
                   className="control-input"
@@ -220,7 +220,7 @@ ${customTheme}
                 />
               </div>
               <div className="control-group">
-                <label className="control-label">地址色</label>
+                <label className="control-label">Address</label>
                 <input
                   type="color"
                   className="control-input"
@@ -229,7 +229,7 @@ ${customTheme}
                 />
               </div>
               <div className="control-group">
-                <label className="control-label">暗色</label>
+                <label className="control-label">Dim</label>
                 <input
                   type="color"
                   className="control-input"
@@ -238,7 +238,7 @@ ${customTheme}
                 />
               </div>
               <div className="control-group">
-                <label className="control-label">选中背景</label>
+                <label className="control-label">Selection Bg</label>
                 <input
                   type="color"
                   className="control-input"
@@ -247,7 +247,7 @@ ${customTheme}
                 />
               </div>
               <div className="control-group">
-                <label className="control-label">选中前景</label>
+                <label className="control-label">Selection Fg</label>
                 <input
                   type="color"
                   className="control-input"
@@ -258,12 +258,12 @@ ${customTheme}
             </div>
           </div>
 
-          {/* 显示设置 */}
+          {/* Display Settings */}
           <div className="section">
-            <div className="section-title">⚙️ 显示设置</div>
+            <div className="section-title">⚙️ Display Settings</div>
             <div className="control-group">
               <label className="control-label">
-                字体大小 <span className="range-value">{fontSize}px</span>
+                Font Size <span className="range-value">{fontSize}px</span>
               </label>
               <input
                 type="range"
@@ -276,7 +276,7 @@ ${customTheme}
             </div>
             <div className="control-group">
               <label className="control-label">
-                地址间隙 <span className="range-value">{addressGap}</span>
+                Address Gap <span className="range-value">{addressGap}</span>
               </label>
               <input
                 type="range"
@@ -290,7 +290,7 @@ ${customTheme}
             </div>
             <div className="control-group">
               <label className="control-label">
-                十六进制间隙 <span className="range-value">{hexGap}</span>
+                Hex Gap <span className="range-value">{hexGap}</span>
               </label>
               <input
                 type="range"
@@ -304,7 +304,7 @@ ${customTheme}
             </div>
             <div className="control-group">
               <label className="control-label">
-                列间隙 <span className="range-value">{sectionGap}</span>
+                Section Gap <span className="range-value">{sectionGap}</span>
               </label>
               <input
                 type="range"
@@ -318,15 +318,15 @@ ${customTheme}
             </div>
           </div>
 
-          {/* 代码示例 */}
+          {/* Code Example */}
           <div className="section">
             <div className="section-title">
-              📝 使用示例
+              📝 Usage Example
               <button 
                 className={`copy-btn ${copySuccess ? 'copy-success' : ''}`} 
                 onClick={copyCode}
               >
-                {copySuccess ? '✓ 已复制' : '📋 复制代码'}
+                {copySuccess ? '✓ Copied' : '📋 Copy Code'}
               </button>
             </div>
             <div className="code-preview">
@@ -335,7 +335,7 @@ ${customTheme}
           </div>
         </div>
 
-        {/* 右侧预览区域 */}
+        {/* Viewer Container */}
         <div className="viewer-container">
           <HexViewer
             className="hex-viewer-wrapper"
