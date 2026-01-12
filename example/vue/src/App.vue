@@ -127,7 +127,8 @@ async function copyCode() {
   <div class="container">
     <div class="header">
       <h1>🔍 HexViewer Vue Demo</h1>
-      <p>High Performance WebGPU Hex Viewer - Vue Component</p>
+      <p>High Performance WebGPU Hex Viewer - Vue Component - <a href="https://github.com/ImChrisChen/hex-viewer"
+          target="_blank" style="color: inherit; text-decoration: underline;">View on GitHub</a></p>
     </div>
 
     <div class="main-content">

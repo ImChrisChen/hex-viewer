@@ -32,6 +32,9 @@
     "build:all": "bun build:lib && bun build:vue && bun build:react",
     "build:vue": "cd example/vue && bun run build",
     "build:react": "cd example/react && bun run build",
+    "build:demos": "bun run build:lib && vite build -c example/purejs/vite.config.ts && cd example/vue && bun run build && cd ../../example/react && bun run build",
+    "deploy": "bun run build:demos && mkdir -p dist_docs/docs && cp docs/index.html dist_docs/index.html && gh-pages -d dist_docs",
+    "release": "bun run build:lib && npm publish",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -43,11 +46,19 @@
     "react",
     "vue"
   ],
-  "author": "",
+  "author": "Chris Chen <chris@imccc.dev>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/ImChrisChen/hex-viewer.git"
+  },
+  "homepage": "https://hex-viewer.imccc.dev",
+  "bugs": {
+    "url": "https://github.com/ImChrisChen/hex-viewer/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -55,6 +66,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@webgpu/types": "^0.1.50",
+    "gh-pages": "^6.3.0",
     "typescript": "^5.0.0",
     "vite": "^6.0.0",
     "vite-plugin-dts": "^4.0.0"

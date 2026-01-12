@@ -9,4 +9,9 @@ export default defineConfig({
       '@imccc/hex-viewer-js': path.resolve(__dirname, '../../dist'),
     },
   },
+  base: './',
+  build: {
+    outDir: '../../docs/react-demo',
+    emptyOutDir: true
+  }
 })

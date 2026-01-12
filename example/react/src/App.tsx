@@ -134,7 +134,7 @@ ${customTheme}
     <div className="container">
       <div className="header">
         <h1>🔍 HexViewer React Demo</h1>
-        <p>High Performance WebGPU Hex Viewer - React Component</p>
+        <p>High Performance WebGPU Hex Viewer - React Component - <a href="https://github.com/ImChrisChen/hex-viewer" target="_blank" style={{color: 'inherit', textDecoration: 'underline'}}>View on GitHub</a></p>
       </div>
 
       <div className="main-content">
