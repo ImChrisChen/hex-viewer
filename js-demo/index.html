@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanilla JS HexViewer Demo - WebGPU Powered</title>
+  <meta name="description"
+    content="Live demo of HexViewer using Vanilla JavaScript. Experience high-performance binary data visualization with WebGPU.">
+  <meta name="keywords" content="hex viewer, webgpu, vanilla js, binary editor, performance, javascript">
+  <meta property="og:title" content="Vanilla JS HexViewer Demo - WebGPU Powered">
+  <meta property="og:description"
+    content="Live demo of HexViewer using Vanilla JavaScript. Experience high-performance binary data visualization with WebGPU.">
+  <meta property="og:type" content="website">
+  <style>
+    /* ... (styles remain unchanged) ... */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    /* ... (rest of styles) ... */
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: #2c3e50;
+      color: white;
+      padding: 24px 30px;
+      border-bottom: 1px solid #34495e;
+    }
+
+    .header h1 {
+      font-size: 1.8em;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .header p {
+      font-size: 0.95em;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+
+    .main-content {
+      display: flex;
+      gap: 0;
+      height: calc(100vh - 200px);
+      min-height: 600px;
+    }
+
+    .sidebar {
+      width: 320px;
+      background: #fafafa;
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid #e0e0e0;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 3px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+
+    .viewer-container {
+      flex: 1;
+      padding: 20px;
+      background: #fff;
+      position: relative;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 0.95em;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #2c3e50;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-label {
+      display: block;
+      font-size: 0.85em;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    .control-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9em;
+      transition: border-color 0.2s;
+      background: white;
+    }
+
+    .control-input:focus {
+      outline: none;
+      border-color: #2c3e50;
+    }
+
+    .control-input[type="range"] {
+      padding: 0;
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      cursor: pointer;
+      border: none;
+    }
+
+    .control-input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #2c3e50;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .control-input[type="range"]::-webkit-slider-thumb:hover {
+      background: #34495e;
+    }
+
+    .control-input[type="color"] {
+      height: 36px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      padding: 2px;
+    }
+
+    .range-value {
+      display: inline-block;
+      margin-left: 8px;
+      font-weight: 500;
+      color: #2c3e50;
+      min-width: 35px;
+      font-size: 0.85em;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: #2c3e50;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #34495e;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #2c3e50;
+      border: 1px solid #2c3e50;
+    }
+
+    .btn-secondary:hover {
+      background: #f5f5f5;
+    }
+
+    .btn-full {
+      grid-column: 1 / -1;
+    }
+
+    select.control-input {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%232c3e50' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+
+    textarea.control-input {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85em;
+    }
+
+    #hex-viewer-display {
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .info-badge {
+      display: inline-block;
+      background: #f0f0f0;
+      color: #666;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 1024px) {
+      .main-content {
+        flex-direction: column;
+        height: auto;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-height: 400px;
+      }
+
+      .viewer-container {
+        min-height: 500px;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-CGnrxK6c.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DIUh0OeQ.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔍 HexViewer Demo</h1>
+      <p>High Performance WebGPU Hex Viewer - Live Config & Preview - <a
+          href="https://github.com/ImChrisChen/hex-viewer" target="_blank"
+          style="color: inherit; text-decoration: underline;">View on GitHub</a></p>
+    </div>
+
+    <div class="main-content">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <!-- Sample Data -->
+        <div class="section">
+          <div class="section-title">📄 Sample Data</div>
+          <div class="control-group">
+            <label class="control-label">Select Sample</label>
+            <select id="sample-select" class="control-input">
+              <option value="hello">Hello World</option>
+              <option value="binary">Binary Data</option>
+              <option value="unicode">Unicode Characters</option>
+              <option value="custom">Custom Data</option>
+            </select>
+          </div>
+          <div class="control-group" id="custom-data-group" style="display: none;">
+            <label class="control-label">Custom Data</label>
+            <textarea id="custom-data" class="control-input" placeholder="Enter text or hex data..."></textarea>
+          </div>
+        </div>
+
+        <!-- Theme Settings -->
+        <div class="section">
+          <div class="section-title">🎨 Theme Settings</div>
+          <div class="control-group">
+            <label class="control-label">Preset</label>
+            <div class="button-group">
+              <button class="btn btn-secondary" id="theme-light">☀️ Light</button>
+              <button class="btn btn-primary" id="theme-dark">🌙 Dark</button>
+            </div>
+          </div>
+          <div class="color-grid">
+            <div class="control-group">
+              <label class="control-label">Background</label>
+              <input type="color" id="color-background" class="control-input" value="#FFFFFF">
+            </div>
+            <div class="control-group">
+              <label class="control-label">Text</label>
+              <input type="color" id="color-text" class="control-input" value="#000000">
+            </div>
+            <div class="control-group">
+              <label class="control-label">Address</label>
+              <input type="color" id="color-address" class="control-input" value="#666666">
+            </div>
+            <div class="control-group">
+              <label class="control-label">Dim</label>
+              <input type="color" id="color-dim" class="control-input" value="#999999">
+            </div>
+            <div class="control-group">
+              <label class="control-label">Selection Bg</label>
+              <input type="color" id="color-selection-bg" class="control-input" value="#0078D4">
+            </div>
+            <div class="control-group">
+              <label class="control-label">Selection Fg</label>
+              <input type="color" id="color-selection-fg" class="control-input" value="#FFFFFF">
+            </div>
+          </div>
+        </div>
+
+        <!-- Display Settings -->
+        <div class="section">
+          <div class="section-title">⚙️ Display Settings</div>
+          <div class="control-group">
+            <label class="control-label">
+              Font Size <span class="range-value" id="font-size-value">34px</span>
+            </label>
+            <input type="range" id="font-size" class="control-input" min="8" max="48" value="34" step="1">
+          </div>
+          <div class="control-group">
+            <label class="control-label">
+              Bytes Per Row (Auto) <span class="range-value" id="bytes-per-row-value">16</span>
+            </label>
+            <input type="range" id="bytes-per-row" disabled class="control-input" min="4" max="32" value="16" step="1">
+          </div>
+          <div class="control-group">
+            <label class="control-label">
+              Address Gap <span class="range-value" id="address-gap-value">2</span>
+            </label>
+            <input type="range" id="address-gap" class="control-input" min="0" max="8" value="2" step="0.1">
+          </div>
+          <div class="control-group">
+            <label class="control-label">
+              Hex Gap <span class="range-value" id="hex-gap-value">1</span>
+            </label>
+            <input type="range" id="hex-gap" class="control-input" min="0" max="4" value="1" step="0.1">
+          </div>
+          <div class="control-group">
+            <label class="control-label">
+              Section Gap <span class="range-value" id="section-gap-value">4</span>
+            </label>
+            <input type="range" id="section-gap" class="control-input" min="0" max="8" value="4" step="0.1">
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="section">
+          <div class="info-badge">✨ Real-time updates on change</div>
+        </div>
+      </div>
+
+      <!-- Viewer Container -->
+      <div class="viewer-container">
+        <div id="hex-viewer-display"></div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
