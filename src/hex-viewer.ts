@@ -1,3 +1,6 @@
+// 使用 Vite 的 ?worker&inline 语法导入内联 worker
+import RendererWorker from './renderer.worker.ts?worker&inline';
+
 // 对外暴露给使用者的主题配置，颜色使用 CSS 十六进制字符串（如 "#FFFFFF" 或 "#11223344"）
 export type HexViewerTheme = {
   background: string;
@@ -187,14 +190,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-// 构造 renderer.worker.ts 的 URL，兼容 file: 协议（本地开发场景）
-function workerUrl(): URL {
-  let url = new URL("./renderer.worker.ts", import.meta.url);
-  if (url.protocol === "file:") {
-    url = new URL("./renderer.worker.ts", window.location.href);
-  }
-  return url;
-}
+// Worker 已通过 Vite 内联导入（见文件顶部的 import 语句）
 
 // 将十六进制颜色字符串转换为 [r,g,b,a] 浮点数组，范围 [0,1]
 // 支持形如 #RRGGBB 或 #RRGGBBAA，不合法输入会返回 undefined
@@ -387,7 +383,7 @@ export class HexViewer {
     this.canvas.tabIndex = this.canvas.tabIndex || 0;
 
     const offscreen = canvas.transferControlToOffscreen();
-    this.worker = new Worker(workerUrl(), { type: "module" });
+    this.worker = new RendererWorker();
 
     this.worker.onmessage = (ev: MessageEvent<WorkerToMainMessage>) => {
       if (ev.data.type === "error") {

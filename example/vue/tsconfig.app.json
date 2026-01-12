@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@imccc/hex-viewer-js/react": ["../../dist/react.d.ts"],
+      "@imccc/hex-viewer-js/vue": ["../../dist/vue.d.ts"],
+      "@imccc/hex-viewer-js": ["../../dist/index.d.ts"],
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+}
