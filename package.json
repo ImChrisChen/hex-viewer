@@ -33,9 +33,9 @@
     "build:vue": "cd example/vue && bun run build",
     "build:react": "cd example/react && bun run build",
     "build:demos": "bun run build:lib && vite build -c example/purejs/vite.config.ts && cd example/vue && bun run build && cd ../../example/react && bun run build",
-    "deploy": "bun run build:demos && mkdir -p dist_docs/docs && cp docs/index.html dist_docs/index.html && gh-pages -d dist_docs",
-    "release": "bun run build:lib && npm publish",
-    "prepublishOnly": "npm run build"
+    "deploy:demos": "bun run build:demos && gh-pages -d docs",
+    "release": "bun run build:all && npm publish",
+    "prepublishOnly": "bun run build:all"
   },
   "keywords": [
     "hex",
