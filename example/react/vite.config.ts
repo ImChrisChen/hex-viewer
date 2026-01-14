@@ -8,6 +8,8 @@ export default defineConfig({
     alias: {
       '@imccc/hex-viewer-js': path.resolve(__dirname, '../../dist'),
     },
+    // 确保所有依赖使用同一个 React 实例，避免 hooks 报错
+    dedupe: ['react', 'react-dom'],
   },
   base: './',
   build: {
