@@ -6,9 +6,9 @@ A high-performance, WebGPU-based Hex Viewer component for modern web application
 
 Check out the live demos:
 
-- **[Vanilla JS Demo](https://github.com/ImChrisChen/hex-viewer)**
-- **[Vue Demo](https://github.com/ImChrisChen/hex-viewer)**
-- **[React Demo](https://github.com/ImChrisChen/hex-viewer)**
+- **[Vanilla JS Demo](https://hex-viewer.imccc.dev/js-demo/)**
+- **[Vue Demo](https://hex-viewer.imccc.dev/vue-demo/)**
+- **[React Demo](https://hex-viewer.imccc.dev/react-demo/)**
 
 ## Why High Performance?
 
